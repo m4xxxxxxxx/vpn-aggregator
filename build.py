@@ -1,11 +1,12 @@
+import base64
 import bisect
 import csv
 import io
+import json
 import re
 import socket
 import sys
 import time
-import base64
 import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -17,11 +18,11 @@ socket.setdefaulttimeout(5)
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 PROTOCOL = "vless://"
-
-# Сколько лучших серверов (по задержке) записывать в list.txt
 MAX_SERVERS = 300
+MAX_LATENCY = 0.8                 # секунд, TCP-подключение с GitHub Actions
+HISTORY_FILE = "history.json"
+FORGET_AFTER = 7 * 24 * 3600      # сервер, не виденный 7 дней, забываем
 
-# Белый список стран (ISO-коды)
 ALLOWED_CODES = {
     "US", "CA", "GB", "DE", "FR", "NL", "SE", "FI", "NO", "DK", "CH", "IE",
     "AT", "BE", "IT", "ES", "PT", "PL", "CZ", "JP", "SG", "AU",
@@ -110,7 +111,6 @@ def blocked_by_name(link):
 
 
 def parse_vless(link):
-    """Возвращает (host, port, uuid), если строка выглядит корректно, иначе None."""
     try:
         u = urlparse(link)
         uuid = u.username or ""
@@ -129,29 +129,46 @@ def parse_vless(link):
     if security == "reality" and not params.get("pbk"):
         return None
 
-    return host, port, uuid
+    return {"host": host, "port": port, "uuid": uuid, "security": security}
 
 
 def evaluate(item):
-    link, host, port = item
+    key, host, port = item
     try:
         ip = socket.getaddrinfo(host, port, socket.AF_INET)[0][4][0]
     except Exception:
-        return "dns_fail", link, None
+        return "dns_fail", key, None, None
 
     code = country_of(ip)
     if code is None:
-        return "geo_unknown", link, None
+        return "geo_unknown", key, None, None
     if code not in ALLOWED_CODES:
-        return "country_not_allowed", link, None
+        return "country_not_allowed", key, None, None
 
     t0 = time.monotonic()
     try:
         with socket.create_connection((ip, port), timeout=3):
             pass
     except Exception:
-        return "dead", link, None
-    return "ok", link, time.monotonic() - t0
+        return "dead", key, None, None
+
+    latency = time.monotonic() - t0
+    if latency > MAX_LATENCY:
+        return "slow", key, latency, code
+    return "ok", key, latency, code
+
+
+def load_history():
+    try:
+        with open(HISTORY_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_history(history):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False)
 
 
 def load_sources():
@@ -173,8 +190,11 @@ def main():
     global geo_starts, geo_ends, geo_codes
     geo_starts, geo_ends, geo_codes = load_geo()
 
-    stats = Counter()
+    history = load_history()
+    now = time.time()
+
     unique = {}
+    stats = Counter()
     raw_total = 0
 
     for url in load_sources():
@@ -194,35 +214,65 @@ def main():
             if parsed is None:
                 stats["bad_format"] += 1
                 continue
-            host, port, uuid = parsed
-            key = (host, port, uuid)
+            key = f"{parsed['uuid']}@{parsed['host']}:{parsed['port']}"
             if key in unique:
                 stats["duplicate"] += 1
                 continue
-            unique[key] = (link, host, port)
+            unique[key] = {**parsed, "link": link}
 
     print("Всего строк:", raw_total)
     print("Уникальных после разбора:", len(unique))
 
-    good = []
+    items = [(k, v["host"], v["port"]) for k, v in unique.items()]
+    results = {}
     with ThreadPoolExecutor(max_workers=30) as ex:
-        for status, link, latency in ex.map(evaluate, unique.values()):
+        for status, key, latency, code in ex.map(evaluate, items):
             stats[status] += 1
-            if status == "ok":
-                good.append((latency, link))
+            results[key] = (status, latency, code)
+
+    # История: сколько запусков подряд сервер проходит проверку
+    for key, (status, _, _) in results.items():
+        h = history.get(key, {"streak": 0, "first": now})
+        h["streak"] = h.get("streak", 0) + 1 if status == "ok" else 0
+        h["seen"] = now
+        history[key] = h
+
+    for key in list(history):
+        if now - history[key].get("seen", 0) > FORGET_AFTER:
+            del history[key]
+
+    save_history(history)
 
     for k, v in stats.most_common():
         print(f"{k}: {v}")
 
-    if not good:
+    ranked = []
+    for key, (status, latency, code) in results.items():
+        if status != "ok":
+            continue
+        u = unique[key]
+        ranked.append((
+            -history[key]["streak"],
+            0 if u["security"] == "reality" else 1,
+            0 if u["port"] == 443 else 1,
+            latency,
+            key,
+            code,
+        ))
+    ranked.sort()
+
+    if not ranked:
         sys.exit("FATAL: ни один сервер не прошёл фильтр, list.txt не обновлён")
 
-    good.sort(key=lambda x: x[0])
-    selected = [link for _, link in good[:MAX_SERVERS]]
+    out = []
+    for i, row in enumerate(ranked[:MAX_SERVERS], 1):
+        key, code = row[4], row[5]
+        base = unique[key]["link"].split("#", 1)[0]
+        out.append(f"{base}#{code}-{i:03d}")
 
     with open("list.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join(selected) + "\n")
-    print(f"Серверов в list.txt: {len(selected)} (из {len(good)} прошедших проверку)")
+        f.write("\n".join(out) + "\n")
+    print(f"Серверов в list.txt: {len(out)} (из {len(ranked)} прошедших проверку)")
 
 
 if __name__ == "__main__":
