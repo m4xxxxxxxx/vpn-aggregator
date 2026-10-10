@@ -18,17 +18,17 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 
 PROTOCOLS = ("vless://", "vmess://", "ss://", "trojan://")
 
-BLOCKED_CODES = {
-    "RU", "BY", "CN", "HK", "IR", "SY", "CU", "VE", "MM", "PK", "KZ", "EG",
-    "IN", "IQ", "SA", "AE", "VN", "AZ", "TR", "AF", "AR",
+# Белый список стран: оставляем только серверы из этих стран (ISO-коды).
+# Сверьте с актуальным списком поддерживаемых регионов Anthropic.
+ALLOWED_CODES = {
+    "US", "CA", "GB", "DE", "FR", "NL", "SE", "FI", "NO", "DK", "CH", "IE",
+    "AT", "BE", "IT", "ES", "PT", "PL", "CZ", "JP", "SG", "AU",
 }
 
+# Метки в названии, которые означают российский или нежелательный сервер
 BLOCKED_NAME_WORDS = [
-    "Russia", "Russian", "РФ", "Россия", "China", "Hong Kong", "Iran", "Syria",
-    "Cuba", "Belarus", "Venezuela", "Myanmar", "Pakistan", "Kazakhstan", "Egypt",
-    "India", "Iraq", "Saudi Arabia", "United Arab Emirates", "Vietnam",
-    "Azerbaijan", "Turkey", "Afghanistan", "Argentina",
-    "Timeweb", "Selectel", "Beget", "Yandex", "VK",
+    "Russia", "Russian", "РФ", "Россия", "Timeweb", "Selectel", "Beget",
+    "Yandex", "VK", "Belarus", "China", "Hong Kong", "Iran",
 ]
 
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
@@ -39,7 +39,6 @@ def _word_re(words, flags=0):
     return re.compile(rf"(?<!\w)(?:{alt})(?!\w)", flags)
 
 
-NAME_CODES_RE = _word_re(BLOCKED_CODES)
 NAME_WORDS_RE = _word_re(BLOCKED_NAME_WORDS, re.IGNORECASE)
 
 
@@ -102,8 +101,7 @@ def name_of(link):
 
 
 def blocked_by_name(link):
-    name = name_of(link)
-    return bool(NAME_CODES_RE.search(name) or NAME_WORDS_RE.search(name))
+    return bool(NAME_WORDS_RE.search(name_of(link)))
 
 
 def host_port(link):
@@ -128,8 +126,8 @@ def evaluate(link):
     code = country_of(ip)
     if code is None:
         return "geo_unknown", link
-    if code in BLOCKED_CODES:
-        return "blocked_ip", link
+    if code not in ALLOWED_CODES:
+        return "country_not_allowed", link
     try:
         with socket.create_connection((ip, port), timeout=3):
             pass
