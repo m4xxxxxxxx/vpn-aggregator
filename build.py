@@ -11,7 +11,7 @@ import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from ipaddress import IPv4Address
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 socket.setdefaulttimeout(5)
 
@@ -19,9 +19,8 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 
 PROTOCOL = "vless://"
 MAX_SERVERS = 300
-MAX_LATENCY = 0.8                 # секунд, TCP-подключение с GitHub Actions
+MAX_LATENCY = 0.8
 HISTORY_FILE = "history.json"
-FORGET_AFTER = 7 * 24 * 3600      # сервер, не виденный 7 дней, забываем
 
 ALLOWED_CODES = {
     "US", "CA", "GB", "DE", "FR", "NL", "SE", "FI", "NO", "DK", "CH", "IE",
@@ -46,6 +45,11 @@ def _word_re(words, flags=0):
 
 
 NAME_WORDS_RE = _word_re(BLOCKED_NAME_WORDS, re.IGNORECASE)
+
+
+def flag(code):
+    # Код страны превращается в флаг-эмодзи из двух региональных символов
+    return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code)
 
 
 def http_get(url, timeout):
@@ -168,7 +172,7 @@ def load_history():
 
 def save_history(history):
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, ensure_ascii=False)
+        json.dump(history, f, ensure_ascii=False, indent=1)
 
 
 def load_sources():
@@ -190,7 +194,7 @@ def main():
     global geo_starts, geo_ends, geo_codes
     geo_starts, geo_ends, geo_codes = load_geo()
 
-    history = load_history()
+    old_history = load_history()
     now = time.time()
 
     unique = {}
@@ -230,19 +234,6 @@ def main():
             stats[status] += 1
             results[key] = (status, latency, code)
 
-    # История: сколько запусков подряд сервер проходит проверку
-    for key, (status, _, _) in results.items():
-        h = history.get(key, {"streak": 0, "first": now})
-        h["streak"] = h.get("streak", 0) + 1 if status == "ok" else 0
-        h["seen"] = now
-        history[key] = h
-
-    for key in list(history):
-        if now - history[key].get("seen", 0) > FORGET_AFTER:
-            del history[key]
-
-    save_history(history)
-
     for k, v in stats.most_common():
         print(f"{k}: {v}")
 
@@ -251,24 +242,35 @@ def main():
         if status != "ok":
             continue
         u = unique[key]
+        streak = old_history.get(key, {}).get("streak", 0) + 1
         ranked.append((
-            -history[key]["streak"],
+            -streak,
             0 if u["security"] == "reality" else 1,
             0 if u["port"] == 443 else 1,
             latency,
             key,
             code,
+            streak,
         ))
-    ranked.sort()
 
     if not ranked:
         sys.exit("FATAL: ни один сервер не прошёл фильтр, list.txt не обновлён")
+
+    ranked.sort()
+
+    # История хранит только серверы, прошедшие проверку в этом запуске
+    new_history = {}
+    for row in ranked:
+        key, streak = row[4], row[6]
+        new_history[key] = {"streak": streak, "seen": now}
+    save_history(new_history)
 
     out = []
     for i, row in enumerate(ranked[:MAX_SERVERS], 1):
         key, code = row[4], row[5]
         base = unique[key]["link"].split("#", 1)[0]
-        out.append(f"{base}#{code}-{i:03d}")
+        label = f"{flag(code)} {code}-{i:03d}"
+        out.append(f"{base}#{quote(label)}")
 
     with open("list.txt", "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
