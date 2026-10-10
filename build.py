@@ -14,9 +14,10 @@ from urllib.parse import unquote, urlparse
 
 socket.setdefaulttimeout(5)
 
+UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
 PROTOCOLS = ("vless://", "vmess://", "ss://", "trojan://")
 
-# Страны, которые исключаем (ISO-коды)
 BLOCKED_CODES = {
     "RU", "BY", "CN", "HK", "IR", "SY", "CU", "VE", "MM", "PK", "KZ", "EG",
     "IN", "IQ", "SA", "AE", "VN", "AZ", "TR", "AF", "AR",
@@ -30,7 +31,6 @@ BLOCKED_NAME_WORDS = [
     "Timeweb", "Selectel", "Beget", "Yandex", "VK",
 ]
 
-# CSV: start_ip, end_ip, country_code (IPv4)
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
 
 
@@ -43,12 +43,15 @@ NAME_CODES_RE = _word_re(BLOCKED_CODES)
 NAME_WORDS_RE = _word_re(BLOCKED_NAME_WORDS, re.IGNORECASE)
 
 
+def http_get(url, timeout):
+    req = urllib.request.Request(url, headers=UA)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read().decode("utf-8", errors="ignore")
+
+
 def load_geo():
-    """Загружает таблицу диапазонов IPv4 -> код страны. При ошибке останавливает сборку."""
     try:
-        req = urllib.request.Request(GEO_CSV_URL, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=60) as r:
-            raw = r.read().decode("utf-8", errors="ignore")
+        raw = http_get(GEO_CSV_URL, 60)
     except Exception as e:
         sys.exit(f"FATAL: GeoIP не загружен ({e}), list.txt не обновлён")
 
@@ -88,8 +91,7 @@ def decode_base64(text):
 
 
 def fetch_lines(url):
-    with urllib.request.urlopen(url, timeout=20) as r:
-        text = r.read().decode("utf-8", errors="ignore")
+    text = http_get(url, 20)
     if not any(p in text for p in PROTOCOLS):
         text = decode_base64(text)
     return [l.strip() for l in text.splitlines() if l.strip().startswith(PROTOCOLS)]
@@ -136,15 +138,27 @@ def evaluate(link):
     return "ok", link
 
 
+def load_sources():
+    with open("sources.txt", encoding="utf-8") as f:
+        lines = [l.strip() for l in f if l.strip() and not l.startswith("#")]
+    good = []
+    for l in lines:
+        if not l.startswith(("http://", "https://")):
+            print("Пропущена некорректная строка:", l)
+            continue
+        if not l.isascii():
+            print("Пропущена ссылка с не-ASCII символами:", l)
+            continue
+        good.append(l)
+    return good
+
+
 def main():
     global geo_starts, geo_ends, geo_codes
     geo_starts, geo_ends, geo_codes = load_geo()
 
-    with open("sources.txt", encoding="utf-8") as f:
-        sources = [l.strip() for l in f if l.strip() and not l.startswith("#")]
-
     candidates = set()
-    for url in sources:
+    for url in load_sources():
         try:
             lines = fetch_lines(url)
             print(f"{len(lines):6d}  {url}")
