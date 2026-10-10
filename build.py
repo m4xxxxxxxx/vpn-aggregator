@@ -22,12 +22,14 @@ socket.setdefaulttimeout(5)
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 PROTOCOL = "vless://"
+OUT_FILE = "config.json"
+HISTORY_FILE = "history.json"
 MAX_SERVERS = 300
 MAX_LATENCY = 0.8
-HISTORY_FILE = "history.json"
 SINGBOX_BIN = "sing-box"
-SINGBOX_TIMEOUT = 20
+SINGBOX_TIMEOUT = 30
 SINGBOX_WORKERS = 8
+TEST_URL = "https://www.gstatic.com/generate_204"
 
 ALLOWED_CODES = {
     "US", "CA", "GB", "DE", "FR", "NL", "SE", "FI", "NO", "DK", "CH", "IE",
@@ -39,6 +41,20 @@ BLOCKED_NAME_WORDS = [
     "Yandex", "VK", "Belarus", "China", "Hong Kong", "Iran",
 ]
 
+# Эти домены всегда идут через VPN, даже если попали под правило для российских адресов
+PROXY_DOMAINS = [
+    "openai.com", "chatgpt.com", "oaistatic.com", "oaiusercontent.com",
+    "claude.ai", "anthropic.com",
+    "gemini.google.com", "aistudio.google.com", "generativelanguage.googleapis.com",
+    "alkalimakersuite-pa.clients6.google.com", "proactivebackend-pa.googleapis.com",
+    "deepmind.google", "bard.google.com",
+    "youtube.com", "youtu.be", "googlevideo.com", "ytimg.com", "ggpht.com",
+    "telegram.org", "t.me", "telegram.me",
+]
+
+# Российские домены (punycode для .рф) идут напрямую
+DIRECT_DOMAINS = [".ru", ".xn--p1ai", ".su"]
+
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
 
 UUID_RE = re.compile(
@@ -47,8 +63,7 @@ UUID_RE = re.compile(
 HOST_RE = re.compile(r"^[A-Za-z0-9.\-]{1,253}$")
 PBK_RE = re.compile(r"^[A-Za-z0-9_\-]{43}$")
 SID_RE = re.compile(r"^(?:[0-9a-fA-F]{2}){0,8}$")
-
-ALLOWED_FP = {"chrome", "firefox", "safari", "ios", "android", "edge", "360", "qq", "random", "randomized"}
+ALLOWED_FP = {"chrome", "firefox", "safari", "ios", "android", "edge", "random", "randomized"}
 ALLOWED_TYPE = {"tcp", "ws", "grpc"}
 ALLOWED_FLOW = {"xtls-rprx-vision"}
 
@@ -75,7 +90,7 @@ def load_geo():
     try:
         raw = http_get(GEO_CSV_URL, 60)
     except Exception as e:
-        sys.exit(f"FATAL: GeoIP не загружен ({e}), list.txt не обновлён")
+        sys.exit(f"FATAL: GeoIP не загружен ({e}), {OUT_FILE} не обновлён")
 
     starts, ends, codes = [], [], []
     for row in csv.reader(io.StringIO(raw)):
@@ -89,7 +104,7 @@ def load_geo():
             continue
 
     if not starts:
-        sys.exit("FATAL: GeoIP пустой, list.txt не обновлён")
+        sys.exit(f"FATAL: GeoIP пустой, {OUT_FILE} не обновлён")
 
     print(f"GeoIP загружен: {len(starts)} диапазонов")
     return starts, ends, codes
@@ -170,19 +185,17 @@ def parse_vless(link):
         if not SID_RE.match(params.get("sid", "")):
             return None
 
-    return {"host": host, "port": port, "uuid": uuid, "security": security}
+    return {"host": host, "port": port, "uuid": uuid, "security": security, "params": params}
 
 
-def singbox_outbound(link):
-    u = urlparse(link)
-    q = {k: v[0] for k, v in parse_qs(u.query, keep_blank_values=True).items()}
-
+def singbox_outbound(parsed, tag):
+    q = parsed["params"]
     ob = {
         "type": "vless",
-        "tag": "proxy",
-        "server": u.hostname,
-        "server_port": u.port,
-        "uuid": u.username,
+        "tag": tag,
+        "server": parsed["host"],
+        "server_port": parsed["port"],
+        "uuid": parsed["uuid"],
     }
     if q.get("flow"):
         ob["flow"] = q["flow"]
@@ -196,33 +209,22 @@ def singbox_outbound(link):
     elif net == "grpc":
         ob["transport"] = {"type": "grpc", "service_name": q.get("serviceName", "")}
 
-    security = q.get("security", "")
+    security = parsed["security"]
+    tls = {"enabled": True, "server_name": q.get("sni") or parsed["host"]}
     fp = q.get("fp") or ("chrome" if security == "reality" else "")
-
-    tls = {"enabled": True, "server_name": q.get("sni") or u.hostname}
-    if q.get("alpn"):
-        tls["alpn"] = q["alpn"].split(",")
     if fp:
         tls["utls"] = {"enabled": True, "fingerprint": fp}
     if security == "reality":
         tls["reality"] = {
             "enabled": True,
-            "public_key": q.get("pbk", ""),
+            "public_key": q["pbk"],
             "short_id": q.get("sid", ""),
         }
     ob["tls"] = tls
     return ob
 
 
-def singbox_accepts(link):
-    try:
-        cfg = {
-            "log": {"disabled": True},
-            "outbounds": [singbox_outbound(link), {"type": "direct", "tag": "direct"}],
-        }
-    except Exception:
-        return False
-
+def sb_check(cfg):
     fd, path = tempfile.mkstemp(suffix=".json")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -230,13 +232,26 @@ def singbox_accepts(link):
         r = subprocess.run(
             [SINGBOX_BIN, "check", "-c", path],
             capture_output=True,
+            text=True,
             timeout=SINGBOX_TIMEOUT,
         )
-        return r.returncode == 0
-    except Exception:
-        return False
+        return r.returncode == 0, (r.stderr or r.stdout).strip()[:800]
+    except Exception as e:
+        return False, str(e)
     finally:
         os.unlink(path)
+
+
+def single_ok(link):
+    parsed = parse_vless(link)
+    if parsed is None:
+        return False
+    cfg = {
+        "log": {"disabled": True},
+        "outbounds": [singbox_outbound(parsed, "proxy"), {"type": "direct", "tag": "direct"}],
+    }
+    ok, _ = sb_check(cfg)
+    return ok
 
 
 def evaluate(item):
@@ -293,12 +308,44 @@ def load_sources():
     return good
 
 
+def build_config(outbounds_servers):
+    tags = [ob["tag"] for ob in outbounds_servers]
+    return {
+        "log": {"level": "warn"},
+        "dns": {
+            "servers": [{"tag": "remote", "type": "https", "server": "1.1.1.1"}],
+            "final": "remote",
+        },
+        "outbounds": [
+            {"type": "selector", "tag": "proxy", "outbounds": ["auto"] + tags, "default": "auto"},
+            {
+                "type": "urltest",
+                "tag": "auto",
+                "outbounds": tags,
+                "url": TEST_URL,
+                "interval": "3m",
+                "tolerance": 50,
+            },
+            *outbounds_servers,
+            {"type": "direct", "tag": "direct"},
+        ],
+        "route": {
+            "rules": [
+                {"ip_is_private": True, "outbound": "direct"},
+                {"domain_suffix": PROXY_DOMAINS, "outbound": "proxy"},
+                {"domain_suffix": DIRECT_DOMAINS, "outbound": "direct"},
+            ],
+            "final": "proxy",
+            "auto_detect_interface": True,
+        },
+    }
+
+
 def main():
-    global geo_starts, geo_ends, geo_codes
-
     if shutil.which(SINGBOX_BIN) is None:
-        sys.exit("FATAL: sing-box не найден, list.txt не обновлён")
+        sys.exit("FATAL: sing-box не найден, " + OUT_FILE + " не обновлён")
 
+    global geo_starts, geo_ends, geo_codes
     geo_starts, geo_ends, geo_codes = load_geo()
     old_history = load_history()
     now = time.time()
@@ -355,41 +402,52 @@ def main():
             code,
             streak,
         ))
-
-    if not ranked:
-        sys.exit("FATAL: ни один сервер не прошёл сетевую проверку, list.txt не обновлён")
-
     ranked.sort()
 
-    keys = [row[4] for row in ranked]
+    if not ranked:
+        sys.exit(f"FATAL: ни один сервер не прошёл сетевую проверку, {OUT_FILE} не обновлён")
+
+    accepted = []
+    i = 0
     with ThreadPoolExecutor(max_workers=SINGBOX_WORKERS) as ex:
-        verdicts = list(ex.map(lambda k: singbox_accepts(unique[k]["link"]), keys))
-    accepted = {k for k, ok in zip(keys, verdicts) if ok}
+        while i < len(ranked) and len(accepted) < MAX_SERVERS:
+            batch = ranked[i:i + 64]
+            i += len(batch)
+            verdicts = list(ex.map(lambda row: single_ok(unique[row[4]]["link"]), batch))
+            for row, ok in zip(batch, verdicts):
+                if ok:
+                    accepted.append(row)
+                else:
+                    stats["singbox_reject"] += 1
+
+    accepted = accepted[:MAX_SERVERS]
     stats["singbox_accept"] = len(accepted)
-    stats["singbox_reject"] = len(keys) - len(accepted)
-    ranked = [row for row in ranked if row[4] in accepted]
 
     for k, v in stats.most_common():
         print(f"{k}: {v}")
 
-    if not ranked:
-        sys.exit("FATAL: sing-box отклонил все серверы, list.txt не обновлён")
+    if not accepted:
+        sys.exit(f"FATAL: sing-box отклонил все серверы, {OUT_FILE} не обновлён")
+
+    servers = []
+    for idx, row in enumerate(accepted, 1):
+        key, code = row[4], row[5]
+        tag = f"{flag(code)} {code}-{idx:03d}"
+        servers.append(singbox_outbound(unique[key], tag))
+
+    config = build_config(servers)
+    ok, err = sb_check(config)
+    if not ok:
+        sys.exit(f"FATAL: итоговый конфиг не прошёл sing-box check, {OUT_FILE} не обновлён:\n{err}")
 
     new_history = {}
-    for row in ranked:
+    for row in accepted:
         new_history[row[4]] = {"streak": row[6], "seen": now}
     save_history(new_history)
 
-    out = []
-    for i, row in enumerate(ranked[:MAX_SERVERS], 1):
-        key, code = row[4], row[5]
-        base = unique[key]["link"].split("#", 1)[0]
-        label = f"{flag(code)} {code}-{i:03d}"
-        out.append(f"{base}#{quote(label)}")
-
-    with open("list.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join(out) + "\n")
-    print(f"Серверов в list.txt: {len(out)} (прошли sing-box: {len(ranked)})")
+    with open(OUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=1)
+    print(f"Серверов в {OUT_FILE}: {len(servers)}, групп: proxy (auto + ручной выбор)")
 
 
 if __name__ == "__main__":
