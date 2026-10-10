@@ -1,5 +1,7 @@
 import base64
-import gzip
+import bisect
+import csv
+import io
 import json
 import re
 import socket
@@ -7,22 +9,19 @@ import sys
 import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from ipaddress import IPv4Address
 from urllib.parse import unquote, urlparse
-
-import geoip2.database
 
 socket.setdefaulttimeout(5)
 
 PROTOCOLS = ("vless://", "vmess://", "ss://", "trojan://")
 
-# Коды стран (сравниваются с учётом регистра, только целыми словами)
+# Страны, которые исключаем (ISO-коды)
 BLOCKED_CODES = {
     "RU", "BY", "CN", "HK", "IR", "SY", "CU", "VE", "MM", "PK", "KZ", "EG",
     "IN", "IQ", "SA", "AE", "VN", "AZ", "TR", "AF", "AR",
 }
 
-# Слова в названии сервера (без учёта регистра, только целыми словами)
 BLOCKED_NAME_WORDS = [
     "Russia", "Russian", "РФ", "Россия", "China", "Hong Kong", "Iran", "Syria",
     "Cuba", "Belarus", "Venezuela", "Myanmar", "Pakistan", "Kazakhstan", "Egypt",
@@ -31,36 +30,55 @@ BLOCKED_NAME_WORDS = [
     "Timeweb", "Selectel", "Beget", "Yandex", "VK",
 ]
 
+# CSV: start_ip, end_ip, country_code (IPv4)
+GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
+
 
 def _word_re(words, flags=0):
     alt = "|".join(re.escape(w) for w in words)
     return re.compile(rf"(?<!\w)(?:{alt})(?!\w)", flags)
 
 
-NAME_CODES_RE = _word_re(BLOCKED_CODES)                    # регистр важен
+NAME_CODES_RE = _word_re(BLOCKED_CODES)
 NAME_WORDS_RE = _word_re(BLOCKED_NAME_WORDS, re.IGNORECASE)
-
-geo = None
 
 
 def load_geo():
-    """Скачивает DB-IP Lite. Если не получилось, останавливает сборку."""
-    y, m = date.today().year, date.today().month
-    for _ in range(4):
-        url = f"https://download.db-ip.com/free/dbip-country-lite-{y}-{m:02d}.mmdb.gz"
+    """Загружает таблицу диапазонов IPv4 -> код страны. При ошибке останавливает сборку."""
+    try:
+        req = urllib.request.Request(GEO_CSV_URL, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            raw = r.read().decode("utf-8", errors="ignore")
+    except Exception as e:
+        sys.exit(f"FATAL: GeoIP не загружен ({e}), list.txt не обновлён")
+
+    starts, ends, codes = [], [], []
+    for row in csv.reader(io.StringIO(raw)):
+        if len(row) < 3:
+            continue
         try:
-            with urllib.request.urlopen(url, timeout=60) as r:
-                data = gzip.decompress(r.read())
-            with open("dbip.mmdb", "wb") as f:
-                f.write(data)
-            print("GeoIP загружен:", url)
-            return geoip2.database.Reader("dbip.mmdb")
-        except Exception as e:
-            print("Не удалось скачать", url, "->", e)
-            m -= 1
-            if m == 0:
-                m, y = 12, y - 1
-    sys.exit("FATAL: база GeoIP не загружена, list.txt не обновлён")
+            starts.append(int(IPv4Address(row[0])))
+            ends.append(int(IPv4Address(row[1])))
+            codes.append(row[2].strip().upper())
+        except ValueError:
+            continue
+
+    if not starts:
+        sys.exit("FATAL: GeoIP пустой, list.txt не обновлён")
+
+    print(f"GeoIP загружен: {len(starts)} диапазонов")
+    return starts, ends, codes
+
+
+geo_starts, geo_ends, geo_codes = [], [], []
+
+
+def country_of(ip):
+    n = int(IPv4Address(ip))
+    i = bisect.bisect_right(geo_starts, n) - 1
+    if i >= 0 and geo_starts[i] <= n <= geo_ends[i]:
+        return geo_codes[i]
+    return None
 
 
 def decode_base64(text):
@@ -105,9 +123,8 @@ def evaluate(link):
         ip = socket.getaddrinfo(host, port, socket.AF_INET)[0][4][0]
     except Exception:
         return "dns_fail", link
-    try:
-        code = geo.country(ip).country.iso_code
-    except Exception:
+    code = country_of(ip)
+    if code is None:
         return "geo_unknown", link
     if code in BLOCKED_CODES:
         return "blocked_ip", link
@@ -120,8 +137,8 @@ def evaluate(link):
 
 
 def main():
-    global geo
-    geo = load_geo()
+    global geo_starts, geo_ends, geo_codes
+    geo_starts, geo_ends, geo_codes = load_geo()
 
     with open("sources.txt", encoding="utf-8") as f:
         sources = [l.strip() for l in f if l.strip() and not l.startswith("#")]
@@ -155,7 +172,7 @@ def main():
         print(f"{k}: {v}")
 
     if not good:
-        sys.exit("FATAL: ни один сервер не прошёл фильтр")
+        sys.exit("FATAL: ни один сервер не прошёл фильтр, list.txt не обновлён")
 
     good.sort()
     with open("list.txt", "w", encoding="utf-8") as f:
