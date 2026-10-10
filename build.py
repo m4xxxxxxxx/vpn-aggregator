@@ -23,8 +23,10 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 PROTOCOL = "vless://"
 OUT_FILE = "config.json"
 SINGBOX = "sing-box"
-TOP_N = 20
-MAX_LATENCY = 1.0
+
+TOP_N = 60            # сколько серверов попадает в профиль
+AUTO_N = 25           # сколько из них тестирует группа auto (экономия батареи)
+MAX_LATENCY = 1.0     # TCP-задержка с GitHub Actions, секунды
 TEST_URL = "https://www.gstatic.com/generate_204"
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
 
@@ -151,6 +153,16 @@ def parse_vless(link):
     return {"host": host, "port": port, "uuid": uuid, "security": security, "params": params}
 
 
+def mobile_rank(parsed, latency):
+    """Меньше = лучше. Сначала reality, потом 443 порт, потом TCP, потом задержка."""
+    return (
+        0 if parsed["security"] == "reality" else 1,
+        0 if parsed["port"] == 443 else 1,
+        0 if parsed["params"].get("type", "tcp") == "tcp" else 1,
+        latency,
+    )
+
+
 def singbox_outbound(parsed, tag):
     q = parsed["params"]
     ob = {
@@ -226,8 +238,8 @@ def load_sources():
     return [l for l in lines if l.startswith(("http://", "https://")) and l.isascii()]
 
 
-def build_config(servers):
-    tags = [s["tag"] for s in servers]
+def build_config(servers, auto_tags):
+    all_tags = [s["tag"] for s in servers]
     return {
         "log": {"level": "warn"},
         "dns": {
@@ -235,11 +247,11 @@ def build_config(servers):
             "final": "remote",
         },
         "outbounds": [
-            {"type": "selector", "tag": "proxy", "outbounds": ["auto"] + tags, "default": "auto"},
+            {"type": "selector", "tag": "proxy", "outbounds": ["auto"] + all_tags, "default": "auto"},
             {
                 "type": "urltest",
                 "tag": "auto",
-                "outbounds": tags,
+                "outbounds": auto_tags,
                 "url": TEST_URL,
                 "interval": "10m",
                 "tolerance": 200,
@@ -297,22 +309,29 @@ def main():
         for status, key, latency, code in ex.map(evaluate, items):
             stats[status] += 1
             if status == "ok":
-                ok.append((latency, key, code))
+                ok.append((mobile_rank(unique[key], latency), key, code, latency))
+
+    ok.sort(key=lambda x: x[0])
 
     for k, v in stats.most_common():
         print(f"{k}: {v}")
 
-    ok.sort()
     chosen = ok[:TOP_N]
     if not chosen:
         sys.exit(f"FATAL: ни один сервер не прошёл проверку, {OUT_FILE} не обновлён")
 
-    servers = []
-    for i, (latency, key, code) in enumerate(chosen, 1):
+    reality_count = sum(1 for _, key, _, _ in chosen if unique[key]["security"] == "reality")
+    port443_count = sum(1 for _, key, _, _ in chosen if unique[key]["port"] == 443)
+    print(f"В профиле: {len(chosen)}, reality: {reality_count}, порт 443: {port443_count}")
+
+    servers, auto_tags = [], []
+    for i, (_, key, code, latency) in enumerate(chosen, 1):
         tag = f"{flag(code)} {code}-{i:02d}"
         servers.append(singbox_outbound(unique[key], tag))
+        if i <= AUTO_N:
+            auto_tags.append(tag)
 
-    config = build_config(servers)
+    config = build_config(servers, auto_tags)
     good, err = sb_check(config)
     if not good:
         sys.exit(f"FATAL: конфиг не прошёл sing-box check, {OUT_FILE} не обновлён:\n{err}")
@@ -320,7 +339,7 @@ def main():
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=1)
 
-    print(f"Записано серверов: {len(servers)}, самый быстрый: {chosen[0][0]:.2f} с")
+    print(f"Записано серверов: {len(servers)}, в auto: {len(auto_tags)}")
 
 
 if __name__ == "__main__":
