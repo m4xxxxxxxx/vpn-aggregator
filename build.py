@@ -1,3 +1,4 @@
+
 import base64
 import bisect
 import csv
@@ -272,7 +273,6 @@ def wait_port(port, timeout):
 
 
 def socks_connect(port, dst_ip, dst_port, timeout=8):
-    """Минимальный SOCKS5 CONNECT через локальный sing-box: True, если соединение установлено."""
     try:
         s = socket.create_connection(("127.0.0.1", port), timeout=timeout)
     except OSError:
@@ -414,7 +414,9 @@ def build_config(servers, auto_tags, tg_tags):
     return {
         "log": {"level": "warn"},
         "dns": {
-            "servers": [{"tag": "remote", "type": "https", "server": "1.1.1.1"}],
+            "servers": [
+                {"tag": "remote", "type": "https", "server": "1.1.1.1", "detour": "proxy"},
+            ],
             "final": "remote",
         },
         "outbounds": [
@@ -433,6 +435,7 @@ def build_config(servers, auto_tags, tg_tags):
         ],
         "route": {
             "rules": [
+                {"action": "sniff"},
                 {"ip_is_private": True, "outbound": "direct"},
                 {"domain_suffix": TG_DOMAINS, "outbound": "telegram"},
                 {"ip_cidr": TG_CIDRS, "outbound": "telegram"},
