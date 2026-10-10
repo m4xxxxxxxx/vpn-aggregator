@@ -24,12 +24,18 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 PROTOCOL = "vless://"
 OUT_FILE = "config.json"
 HISTORY_FILE = "history.json"
-MAX_SERVERS = 300
-MAX_LATENCY = 0.8
+
+MAX_LATENCY = 0.8          # TCP-предфильтр, секунды
+MAX_E2E = 1.5              # полный запрос через сервер, секунды
+E2E_BUDGET = 400           # сколько кандидатов реально проверять (время сборки, не лимит результата)
+TOP_AUTO = 30              # сколько самых быстрых идут в группу auto
+PORT_BASE = 20000
 SINGBOX_BIN = "sing-box"
 SINGBOX_TIMEOUT = 30
 SINGBOX_WORKERS = 8
+
 TEST_URL = "https://www.gstatic.com/generate_204"
+CHECK_URLS = {"claude": "https://claude.ai/", "telegram": "https://api.telegram.org/"}
 
 ALLOWED_CODES = {
     "US", "CA", "GB", "DE", "FR", "NL", "SE", "FI", "NO", "DK", "CH", "IE",
@@ -41,7 +47,6 @@ BLOCKED_NAME_WORDS = [
     "Yandex", "VK", "Belarus", "China", "Hong Kong", "Iran",
 ]
 
-# Эти домены всегда идут через VPN, даже если попали под правило для российских адресов
 PROXY_DOMAINS = [
     "openai.com", "chatgpt.com", "oaistatic.com", "oaiusercontent.com",
     "claude.ai", "anthropic.com",
@@ -52,7 +57,13 @@ PROXY_DOMAINS = [
     "telegram.org", "t.me", "telegram.me",
 ]
 
-# Российские домены (punycode для .рф) идут напрямую
+# IP-диапазоны Telegram: клиент ходит на них напрямую, по доменам не определяется.
+# Проверьте актуальность перед использованием.
+TG_CIDRS = [
+    "91.108.4.0/22", "91.108.8.0/22", "91.108.12.0/22", "91.108.16.0/22",
+    "91.108.20.0/22", "91.108.56.0/22", "149.154.160.0/20", "185.76.151.0/24",
+]
+
 DIRECT_DOMAINS = [".ru", ".xn--p1ai", ".su"]
 
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
@@ -242,16 +253,79 @@ def sb_check(cfg):
         os.unlink(path)
 
 
-def single_ok(link):
+def wait_port(port, timeout):
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.3):
+                return True
+        except OSError:
+            time.sleep(0.2)
+    return False
+
+
+def curl(proxy, url):
+    r = subprocess.run(
+        ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code} %{time_total}",
+         "--max-time", "8", "-x", proxy, url],
+        capture_output=True, text=True,
+    )
+    parts = r.stdout.split()
+    if len(parts) != 2:
+        return 0, 99.0
+    return int(parts[0]), float(parts[1])
+
+
+def e2e_test(job, link):
+    """Поднимает sing-box с одним сервером и реально проходит через него запросы."""
     parsed = parse_vless(link)
     if parsed is None:
-        return False
+        return "bad", None
+
+    port = PORT_BASE + job
     cfg = {
         "log": {"disabled": True},
+        "inbounds": [{"type": "mixed", "tag": "in", "listen": "127.0.0.1", "listen_port": port}],
         "outbounds": [singbox_outbound(parsed, "proxy"), {"type": "direct", "tag": "direct"}],
+        "route": {"final": "proxy"},
     }
-    ok, _ = sb_check(cfg)
-    return ok
+
+    fd, path = tempfile.mkstemp(suffix=".json")
+    proc = None
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(cfg, f)
+        proc = subprocess.Popen(
+            [SINGBOX_BIN, "run", "-c", path],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        if not wait_port(port, 8):
+            return "start_fail", None
+
+        proxy = f"socks5h://127.0.0.1:{port}"
+        code, t = curl(proxy, TEST_URL)
+        if code != 204:
+            return "no_generate204", None
+
+        cl, _ = curl(proxy, CHECK_URLS["claude"])
+        tg, _ = curl(proxy, CHECK_URLS["telegram"])
+        if cl == 0 or tg == 0:
+            return "service_unreachable", None
+
+        return "ok", {"time": t, "claude": cl, "tg": tg}
+    except Exception:
+        return "error", None
+    finally:
+        if proc is not None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
 
 
 def evaluate(item):
@@ -308,8 +382,8 @@ def load_sources():
     return good
 
 
-def build_config(outbounds_servers):
-    tags = [ob["tag"] for ob in outbounds_servers]
+def build_config(servers, auto_tags):
+    all_tags = [s["tag"] for s in servers]
     return {
         "log": {"level": "warn"},
         "dns": {
@@ -317,22 +391,23 @@ def build_config(outbounds_servers):
             "final": "remote",
         },
         "outbounds": [
-            {"type": "selector", "tag": "proxy", "outbounds": ["auto"] + tags, "default": "auto"},
+            {"type": "selector", "tag": "proxy", "outbounds": ["auto"] + all_tags, "default": "auto"},
             {
                 "type": "urltest",
                 "tag": "auto",
-                "outbounds": tags,
+                "outbounds": auto_tags,
                 "url": TEST_URL,
-                "interval": "3m",
-                "tolerance": 50,
+                "interval": "5m",
+                "tolerance": 100,
             },
-            *outbounds_servers,
+            *servers,
             {"type": "direct", "tag": "direct"},
         ],
         "route": {
             "rules": [
                 {"ip_is_private": True, "outbound": "direct"},
                 {"domain_suffix": PROXY_DOMAINS, "outbound": "proxy"},
+                {"ip_cidr": TG_CIDRS, "outbound": "proxy"},
                 {"domain_suffix": DIRECT_DOMAINS, "outbound": "direct"},
             ],
             "final": "proxy",
@@ -341,9 +416,17 @@ def build_config(outbounds_servers):
     }
 
 
+def run_one(job):
+    idx, (key, code, link) = job
+    status, data = e2e_test(idx, link)
+    return key, code, status, data
+
+
 def main():
     if shutil.which(SINGBOX_BIN) is None:
-        sys.exit("FATAL: sing-box не найден, " + OUT_FILE + " не обновлён")
+        sys.exit(f"FATAL: sing-box не найден, {OUT_FILE} не обновлён")
+    if shutil.which("curl") is None:
+        sys.exit(f"FATAL: curl не найден, {OUT_FILE} не обновлён")
 
     global geo_starts, geo_ends, geo_codes
     geo_starts, geo_ends, geo_codes = load_geo()
@@ -391,63 +474,61 @@ def main():
     for key, (status, latency, code) in results.items():
         if status != "ok":
             continue
-        u = unique[key]
-        streak = old_history.get(key, {}).get("streak", 0) + 1
-        ranked.append((
-            -streak,
-            0 if u["security"] == "reality" else 1,
-            0 if u["port"] == 443 else 1,
-            latency,
-            key,
-            code,
-            streak,
-        ))
+        streak = old_history.get(key, {}).get("streak", 0)
+        ranked.append((-streak, latency, key, code))
     ranked.sort()
 
     if not ranked:
         sys.exit(f"FATAL: ни один сервер не прошёл сетевую проверку, {OUT_FILE} не обновлён")
 
-    accepted = []
-    i = 0
-    with ThreadPoolExecutor(max_workers=SINGBOX_WORKERS) as ex:
-        while i < len(ranked) and len(accepted) < MAX_SERVERS:
-            batch = ranked[i:i + 64]
-            i += len(batch)
-            verdicts = list(ex.map(lambda row: single_ok(unique[row[4]]["link"]), batch))
-            for row, ok in zip(batch, verdicts):
-                if ok:
-                    accepted.append(row)
-                else:
-                    stats["singbox_reject"] += 1
+    candidates = [(key, code, unique[key]["link"]) for _, _, key, code in ranked[:E2E_BUDGET]]
+    jobs = list(enumerate(candidates))
 
-    accepted = accepted[:MAX_SERVERS]
-    stats["singbox_accept"] = len(accepted)
+    with ThreadPoolExecutor(max_workers=SINGBOX_WORKERS) as ex:
+        outs = list(ex.map(run_one, jobs))
+
+    passed = []
+    for key, code, status, data in outs:
+        stats["e2e_" + status] += 1
+        if status != "ok":
+            continue
+        if data["time"] > MAX_E2E:
+            stats["e2e_slow"] += 1
+            continue
+        passed.append((data["time"], key, code))
+
+    passed.sort()
 
     for k, v in stats.most_common():
         print(f"{k}: {v}")
 
-    if not accepted:
-        sys.exit(f"FATAL: sing-box отклонил все серверы, {OUT_FILE} не обновлён")
+    if not passed:
+        sys.exit(f"FATAL: ни один сервер не прошёл end-to-end проверку, {OUT_FILE} не обновлён")
 
     servers = []
-    for idx, row in enumerate(accepted, 1):
-        key, code = row[4], row[5]
+    auto_tags = []
+    new_history = {}
+    for idx, (t, key, code) in enumerate(passed, 1):
         tag = f"{flag(code)} {code}-{idx:03d}"
         servers.append(singbox_outbound(unique[key], tag))
+        if idx <= TOP_AUTO:
+            auto_tags.append(tag)
+        new_history[key] = {
+            "streak": old_history.get(key, {}).get("streak", 0) + 1,
+            "seen": now,
+        }
 
-    config = build_config(servers)
+    config = build_config(servers, auto_tags)
     ok, err = sb_check(config)
     if not ok:
         sys.exit(f"FATAL: итоговый конфиг не прошёл sing-box check, {OUT_FILE} не обновлён:\n{err}")
 
-    new_history = {}
-    for row in accepted:
-        new_history[row[4]] = {"streak": row[6], "seen": now}
     save_history(new_history)
-
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=1)
-    print(f"Серверов в {OUT_FILE}: {len(servers)}, групп: proxy (auto + ручной выбор)")
+
+    print(f"Серверов в {OUT_FILE}: {len(servers)}, в группе auto: {len(auto_tags)}")
+    print(f"Самый быстрый: {passed[0][0]:.2f} с, самый медленный: {passed[-1][0]:.2f} с")
 
 
 if __name__ == "__main__":
