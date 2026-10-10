@@ -3,9 +3,13 @@ import bisect
 import csv
 import io
 import json
+import os
 import re
+import shutil
 import socket
+import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from collections import Counter
@@ -21,6 +25,9 @@ PROTOCOL = "vless://"
 MAX_SERVERS = 300
 MAX_LATENCY = 0.8
 HISTORY_FILE = "history.json"
+SINGBOX_BIN = "sing-box"
+SINGBOX_TIMEOUT = 20
+SINGBOX_WORKERS = 8
 
 ALLOWED_CODES = {
     "US", "CA", "GB", "DE", "FR", "NL", "SE", "FI", "NO", "DK", "CH", "IE",
@@ -37,6 +44,13 @@ GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geo
 UUID_RE = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
+HOST_RE = re.compile(r"^[A-Za-z0-9.\-]{1,253}$")
+PBK_RE = re.compile(r"^[A-Za-z0-9_\-]{43}$")
+SID_RE = re.compile(r"^(?:[0-9a-fA-F]{2}){0,8}$")
+
+ALLOWED_FP = {"chrome", "firefox", "safari", "ios", "android", "edge", "360", "qq", "random", "randomized"}
+ALLOWED_TYPE = {"tcp", "ws", "grpc"}
+ALLOWED_FLOW = {"xtls-rprx-vision"}
 
 
 def _word_re(words, flags=0):
@@ -48,7 +62,6 @@ NAME_WORDS_RE = _word_re(BLOCKED_NAME_WORDS, re.IGNORECASE)
 
 
 def flag(code):
-    # Код страны превращается в флаг-эмодзи из двух региональных символов
     return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code)
 
 
@@ -118,22 +131,112 @@ def parse_vless(link):
     try:
         u = urlparse(link)
         uuid = u.username or ""
-        host = u.hostname
+        host = u.hostname or ""
         port = u.port
-        params = parse_qs(u.query)
+        params = {k: v[0] for k, v in parse_qs(u.query, keep_blank_values=True).items()}
     except ValueError:
         return None
 
-    if not UUID_RE.match(uuid) or not host or not port:
+    if not UUID_RE.match(uuid):
+        return None
+    if not HOST_RE.match(host) or not port or not (1 <= port <= 65535):
+        return None
+    if params.get("encryption", "none") != "none":
         return None
 
-    security = params.get("security", [""])[0]
+    security = params.get("security", "")
     if security not in ("reality", "tls"):
         return None
-    if security == "reality" and not params.get("pbk"):
+
+    net = params.get("type", "tcp")
+    if net not in ALLOWED_TYPE:
         return None
 
+    flow = params.get("flow", "")
+    if flow and (flow not in ALLOWED_FLOW or security != "reality" or net != "tcp"):
+        return None
+
+    fp = params.get("fp", "")
+    if fp and fp not in ALLOWED_FP:
+        return None
+
+    sni = params.get("sni", "")
+    if sni and not HOST_RE.match(sni):
+        return None
+
+    if security == "reality":
+        if not PBK_RE.match(params.get("pbk", "")):
+            return None
+        if not SID_RE.match(params.get("sid", "")):
+            return None
+
     return {"host": host, "port": port, "uuid": uuid, "security": security}
+
+
+def singbox_outbound(link):
+    u = urlparse(link)
+    q = {k: v[0] for k, v in parse_qs(u.query, keep_blank_values=True).items()}
+
+    ob = {
+        "type": "vless",
+        "tag": "proxy",
+        "server": u.hostname,
+        "server_port": u.port,
+        "uuid": u.username,
+    }
+    if q.get("flow"):
+        ob["flow"] = q["flow"]
+
+    net = q.get("type", "tcp")
+    if net == "ws":
+        t = {"type": "ws", "path": q.get("path", "/")}
+        if q.get("host"):
+            t["headers"] = {"Host": q["host"]}
+        ob["transport"] = t
+    elif net == "grpc":
+        ob["transport"] = {"type": "grpc", "service_name": q.get("serviceName", "")}
+
+    security = q.get("security", "")
+    fp = q.get("fp") or ("chrome" if security == "reality" else "")
+
+    tls = {"enabled": True, "server_name": q.get("sni") or u.hostname}
+    if q.get("alpn"):
+        tls["alpn"] = q["alpn"].split(",")
+    if fp:
+        tls["utls"] = {"enabled": True, "fingerprint": fp}
+    if security == "reality":
+        tls["reality"] = {
+            "enabled": True,
+            "public_key": q.get("pbk", ""),
+            "short_id": q.get("sid", ""),
+        }
+    ob["tls"] = tls
+    return ob
+
+
+def singbox_accepts(link):
+    try:
+        cfg = {
+            "log": {"disabled": True},
+            "outbounds": [singbox_outbound(link), {"type": "direct", "tag": "direct"}],
+        }
+    except Exception:
+        return False
+
+    fd, path = tempfile.mkstemp(suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(cfg, f)
+        r = subprocess.run(
+            [SINGBOX_BIN, "check", "-c", path],
+            capture_output=True,
+            timeout=SINGBOX_TIMEOUT,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+    finally:
+        os.unlink(path)
 
 
 def evaluate(item):
@@ -192,8 +295,11 @@ def load_sources():
 
 def main():
     global geo_starts, geo_ends, geo_codes
-    geo_starts, geo_ends, geo_codes = load_geo()
 
+    if shutil.which(SINGBOX_BIN) is None:
+        sys.exit("FATAL: sing-box не найден, list.txt не обновлён")
+
+    geo_starts, geo_ends, geo_codes = load_geo()
     old_history = load_history()
     now = time.time()
 
@@ -234,9 +340,6 @@ def main():
             stats[status] += 1
             results[key] = (status, latency, code)
 
-    for k, v in stats.most_common():
-        print(f"{k}: {v}")
-
     ranked = []
     for key, (status, latency, code) in results.items():
         if status != "ok":
@@ -254,15 +357,27 @@ def main():
         ))
 
     if not ranked:
-        sys.exit("FATAL: ни один сервер не прошёл фильтр, list.txt не обновлён")
+        sys.exit("FATAL: ни один сервер не прошёл сетевую проверку, list.txt не обновлён")
 
     ranked.sort()
 
-    # История хранит только серверы, прошедшие проверку в этом запуске
+    keys = [row[4] for row in ranked]
+    with ThreadPoolExecutor(max_workers=SINGBOX_WORKERS) as ex:
+        verdicts = list(ex.map(lambda k: singbox_accepts(unique[k]["link"]), keys))
+    accepted = {k for k, ok in zip(keys, verdicts) if ok}
+    stats["singbox_accept"] = len(accepted)
+    stats["singbox_reject"] = len(keys) - len(accepted)
+    ranked = [row for row in ranked if row[4] in accepted]
+
+    for k, v in stats.most_common():
+        print(f"{k}: {v}")
+
+    if not ranked:
+        sys.exit("FATAL: sing-box отклонил все серверы, list.txt не обновлён")
+
     new_history = {}
     for row in ranked:
-        key, streak = row[4], row[6]
-        new_history[key] = {"streak": streak, "seen": now}
+        new_history[row[4]] = {"streak": row[6], "seen": now}
     save_history(new_history)
 
     out = []
@@ -274,7 +389,7 @@ def main():
 
     with open("list.txt", "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
-    print(f"Серверов в list.txt: {len(out)} (из {len(ranked)} прошедших проверку)")
+    print(f"Серверов в list.txt: {len(out)} (прошли sing-box: {len(ranked)})")
 
 
 if __name__ == "__main__":
