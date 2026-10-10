@@ -1,23 +1,33 @@
 name: update
+
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 */3 * * *"
   workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-            - run: pip install geoip2
-            - run: python build.py
-        - run: |
+
+      - name: Install dependencies
+        run: pip install geoip2
+
+      - name: Build list
+        run: python build.py
+
+      - name: Commit and push
+        run: |
           git config user.name "bot"
           git config user.email "bot@users.noreply.github.com"
           git add list.txt
-          git commit -m "update" || exit 0
+          git commit -m "update list" || exit 0
           git push
