@@ -15,7 +15,7 @@ import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from ipaddress import IPv4Address
-from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 socket.setdefaulttimeout(5)
 
@@ -25,17 +25,22 @@ PROTOCOL = "vless://"
 OUT_FILE = "config.json"
 HISTORY_FILE = "history.json"
 
-MAX_LATENCY = 0.8          # TCP-предфильтр, секунды
-MAX_E2E = 1.5              # полный запрос через сервер, секунды
-E2E_BUDGET = 400           # сколько кандидатов реально проверять (время сборки, не лимит результата)
-TOP_AUTO = 30              # сколько самых быстрых идут в группу auto
+MAX_LATENCY = 0.8
+MAX_E2E = 1.5
+E2E_BUDGET = 400
+TOP_AUTO = 30
+TG_GROUP_SIZE = 10
 PORT_BASE = 20000
 SINGBOX_BIN = "sing-box"
 SINGBOX_TIMEOUT = 30
 SINGBOX_WORKERS = 8
 
 TEST_URL = "https://www.gstatic.com/generate_204"
-CHECK_URLS = {"claude": "https://claude.ai/", "telegram": "https://api.telegram.org/"}
+CHECK_URLS = {"claude": "https://claude.ai/"}
+
+# Адреса дата-центров Telegram для проверки TCP-доступа через сервер.
+# Указаны по памяти, проверьте актуальность.
+TG_DC_TEST = ["149.154.167.51", "149.154.175.100", "91.108.56.130"]
 
 ALLOWED_CODES = {
     "US", "CA", "GB", "DE", "FR", "NL", "SE", "FI", "NO", "DK", "CH", "IE",
@@ -54,14 +59,15 @@ PROXY_DOMAINS = [
     "alkalimakersuite-pa.clients6.google.com", "proactivebackend-pa.googleapis.com",
     "deepmind.google", "bard.google.com",
     "youtube.com", "youtu.be", "googlevideo.com", "ytimg.com", "ggpht.com",
-    "telegram.org", "t.me", "telegram.me",
 ]
 
-# IP-диапазоны Telegram: клиент ходит на них напрямую, по доменам не определяется.
-# Проверьте актуальность перед использованием.
+TG_DOMAINS = ["telegram.org", "t.me", "telegram.me", "telegra.ph", "tdesktop.com"]
+
+# IP-диапазоны Telegram. Указаны по памяти, проверьте актуальность.
 TG_CIDRS = [
     "91.108.4.0/22", "91.108.8.0/22", "91.108.12.0/22", "91.108.16.0/22",
-    "91.108.20.0/22", "91.108.56.0/22", "149.154.160.0/20", "185.76.151.0/24",
+    "91.108.20.0/22", "91.108.56.0/22", "91.105.192.0/23",
+    "95.161.64.0/20", "149.154.160.0/20", "185.76.151.0/24",
 ]
 
 DIRECT_DOMAINS = [".ru", ".xn--p1ai", ".su"]
@@ -207,6 +213,7 @@ def singbox_outbound(parsed, tag):
         "server": parsed["host"],
         "server_port": parsed["port"],
         "uuid": parsed["uuid"],
+        "packet_encoding": "xudp",
     }
     if q.get("flow"):
         ob["flow"] = q["flow"]
@@ -264,6 +271,25 @@ def wait_port(port, timeout):
     return False
 
 
+def socks_connect(port, dst_ip, dst_port, timeout=8):
+    """Минимальный SOCKS5 CONNECT через локальный sing-box: True, если соединение установлено."""
+    try:
+        s = socket.create_connection(("127.0.0.1", port), timeout=timeout)
+    except OSError:
+        return False
+    try:
+        s.sendall(b"\x05\x01\x00")
+        if s.recv(2) != b"\x05\x00":
+            return False
+        s.sendall(b"\x05\x01\x00\x01" + socket.inet_aton(dst_ip) + dst_port.to_bytes(2, "big"))
+        rep = s.recv(2)
+        return len(rep) == 2 and rep[0] == 5 and rep[1] == 0
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+
 def curl(proxy, url):
     r = subprocess.run(
         ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code} %{time_total}",
@@ -277,7 +303,6 @@ def curl(proxy, url):
 
 
 def e2e_test(job, link):
-    """Поднимает sing-box с одним сервером и реально проходит через него запросы."""
     parsed = parse_vless(link)
     if parsed is None:
         return "bad", None
@@ -308,11 +333,13 @@ def e2e_test(job, link):
             return "no_generate204", None
 
         cl, _ = curl(proxy, CHECK_URLS["claude"])
-        tg, _ = curl(proxy, CHECK_URLS["telegram"])
-        if cl == 0 or tg == 0:
-            return "service_unreachable", None
+        if cl == 0:
+            return "claude_unreachable", None
 
-        return "ok", {"time": t, "claude": cl, "tg": tg}
+        tg_hits = sum(1 for ip in TG_DC_TEST if socks_connect(port, ip, 443))
+        tg_ok = tg_hits >= 2
+
+        return "ok", {"time": t, "tg": tg_ok}
     except Exception:
         return "error", None
     finally:
@@ -382,7 +409,7 @@ def load_sources():
     return good
 
 
-def build_config(servers, auto_tags):
+def build_config(servers, auto_tags, tg_tags):
     all_tags = [s["tag"] for s in servers]
     return {
         "log": {"level": "warn"},
@@ -397,17 +424,19 @@ def build_config(servers, auto_tags):
                 "tag": "auto",
                 "outbounds": auto_tags,
                 "url": TEST_URL,
-                "interval": "5m",
-                "tolerance": 100,
+                "interval": "10m",
+                "tolerance": 200,
             },
+            {"type": "selector", "tag": "telegram", "outbounds": tg_tags, "default": tg_tags[0]},
             *servers,
             {"type": "direct", "tag": "direct"},
         ],
         "route": {
             "rules": [
                 {"ip_is_private": True, "outbound": "direct"},
+                {"domain_suffix": TG_DOMAINS, "outbound": "telegram"},
+                {"ip_cidr": TG_CIDRS, "outbound": "telegram"},
                 {"domain_suffix": PROXY_DOMAINS, "outbound": "proxy"},
-                {"ip_cidr": TG_CIDRS, "outbound": "proxy"},
                 {"domain_suffix": DIRECT_DOMAINS, "outbound": "direct"},
             ],
             "final": "proxy",
@@ -495,7 +524,9 @@ def main():
         if data["time"] > MAX_E2E:
             stats["e2e_slow"] += 1
             continue
-        passed.append((data["time"], key, code))
+        if data["tg"]:
+            stats["tg_ok"] += 1
+        passed.append((data["time"], key, code, data["tg"]))
 
     passed.sort()
 
@@ -505,20 +536,26 @@ def main():
     if not passed:
         sys.exit(f"FATAL: ни один сервер не прошёл end-to-end проверку, {OUT_FILE} не обновлён")
 
-    servers = []
-    auto_tags = []
+    servers, auto_tags, tg_tags = [], [], []
     new_history = {}
-    for idx, (t, key, code) in enumerate(passed, 1):
+    for idx, (t, key, code, tg_ok) in enumerate(passed, 1):
         tag = f"{flag(code)} {code}-{idx:03d}"
         servers.append(singbox_outbound(unique[key], tag))
         if idx <= TOP_AUTO:
             auto_tags.append(tag)
+        if tg_ok:
+            tg_tags.append(tag)
         new_history[key] = {
             "streak": old_history.get(key, {}).get("streak", 0) + 1,
             "seen": now,
         }
 
-    config = build_config(servers, auto_tags)
+    tg_tags = tg_tags[:TG_GROUP_SIZE]
+    if not tg_tags:
+        print("ВНИМАНИЕ: ни один сервер не прошёл проверку Telegram, группа telegram заполнена самыми быстрыми")
+        tg_tags = [s["tag"] for s in servers[:TG_GROUP_SIZE]]
+
+    config = build_config(servers, auto_tags, tg_tags)
     ok, err = sb_check(config)
     if not ok:
         sys.exit(f"FATAL: итоговый конфиг не прошёл sing-box check, {OUT_FILE} не обновлён:\n{err}")
@@ -527,7 +564,7 @@ def main():
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=1)
 
-    print(f"Серверов в {OUT_FILE}: {len(servers)}, в группе auto: {len(auto_tags)}")
+    print(f"Серверов: {len(servers)}, auto: {len(auto_tags)}, telegram: {len(tg_tags)}")
     print(f"Самый быстрый: {passed[0][0]:.2f} с, самый медленный: {passed[-1][0]:.2f} с")
 
 
