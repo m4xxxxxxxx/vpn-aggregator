@@ -5,6 +5,7 @@ import re
 import socket
 import sys
 import time
+import base64
 import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
