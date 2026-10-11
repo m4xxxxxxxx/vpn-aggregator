@@ -15,18 +15,19 @@ import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from ipaddress import IPv4Address
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 socket.setdefaulttimeout(5)
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 PROTOCOL = "vless://"
 OUT_FILE = "config.json"
+LIST_FILE = "list.txt"
 SINGBOX = "sing-box"
 
-TOP_N = 60                  # серверов в каждой группе (зарубежные и российские)
-AUTO_N = 20                 # из каждой группы в автотест на телефоне
-MAX_LATENCY_FOREIGN = 1.0   # TCP-задержка с GitHub Actions, секунды
+TOP_N = 60
+AUTO_N = 20
+MAX_LATENCY_FOREIGN = 1.0
 MAX_LATENCY_RU = 2.5
 TEST_URL_FOREIGN = "https://www.gstatic.com/generate_204"
 TEST_URL_RU = "https://ya.ru/"
@@ -38,14 +39,11 @@ FOREIGN_CODES = {
     "AT", "BE", "IT", "ES", "PT", "PL", "CZ", "JP", "SG", "AU",
 }
 
-# Название зарубежного сервера с этими словами пропускаем.
-# Для российских серверов (код RU) проверка не применяется.
 FOREIGN_BLOCK_RE = re.compile(
     r"(?<!\w)(Russia|Russian|РФ|Россия|Timeweb|Selectel|Beget|Yandex|VK|Belarus|China|Hong Kong|Iran)(?!\w)",
     re.IGNORECASE,
 )
 
-# Сервисы, которым нужен зарубежный выход: российский IP их обычно не пускает
 AI_DOMAINS = [
     "openai.com", "chatgpt.com", "oaistatic.com", "oaiusercontent.com",
     "claude.ai", "anthropic.com",
@@ -54,7 +52,6 @@ AI_DOMAINS = [
     "deepmind.google", "bard.google.com",
 ]
 
-# Остальные сервисы идут через текущий выбор в группе proxy
 OTHER_PROXY_DOMAINS = [
     "youtube.com", "youtu.be", "googlevideo.com", "ytimg.com", "ggpht.com",
     "telegram.org", "t.me", "telegram.me", "telegra.ph",
@@ -85,7 +82,7 @@ def load_geo():
     try:
         raw = http_get(GEO_CSV_URL, 60)
     except Exception as e:
-        sys.exit(f"FATAL: GeoIP не загружен ({e}), {OUT_FILE} не обновлён")
+        sys.exit(f"FATAL: GeoIP не загружен ({e}), файлы не обновлены")
     starts, ends, codes = [], [], []
     for row in csv.reader(io.StringIO(raw)):
         if len(row) < 3:
@@ -97,7 +94,7 @@ def load_geo():
         except ValueError:
             continue
     if not starts:
-        sys.exit(f"FATAL: GeoIP пустой, {OUT_FILE} не обновлён")
+        sys.exit("FATAL: GeoIP пустой, файлы не обновлены")
     print(f"GeoIP загружен: {len(starts)} диапазонов")
     return starts, ends, codes
 
@@ -161,11 +158,10 @@ def parse_vless(link):
         if not SID_RE.match(params.get("sid", "")):
             return None
 
-    return {"host": host, "port": port, "uuid": uuid, "security": security, "params": params}
+    return {"host": host, "port": port, "uuid": uuid, "security": security, "params": params, "link": link}
 
 
 def mobile_rank(parsed, latency):
-    """Меньше = лучше: reality, затем порт 443, затем TCP, затем задержка."""
     return (
         0 if parsed["security"] == "reality" else 1,
         0 if parsed["port"] == 443 else 1,
@@ -247,8 +243,7 @@ def load_sources():
 
 
 def build_config(servers, ru_tags, ru_auto, fo_tags, fo_auto):
-    outs = []
-    members = []
+    outs, members = [], []
     if ru_tags:
         outs.append({
             "type": "urltest", "tag": "auto-ru", "outbounds": ru_auto,
@@ -262,13 +257,11 @@ def build_config(servers, ru_tags, ru_auto, fo_tags, fo_auto):
         })
         members.append("auto")
 
-    all_tags = ru_tags + fo_tags
     proxy = {
         "type": "selector", "tag": "proxy",
-        "outbounds": members + all_tags,
+        "outbounds": members + ru_tags + fo_tags,
         "default": members[0],
     }
-
     ai_target = "auto" if fo_tags else "proxy"
 
     return {
@@ -292,11 +285,23 @@ def build_config(servers, ru_tags, ru_auto, fo_tags, fo_auto):
     }
 
 
+def write_list(ru_items, fo_items, path):
+    """Подписка для v2rayNG: обычные vless-ссылки, российские первыми."""
+    lines = []
+    for n, (parsed, code) in enumerate(ru_items + fo_items, 1):
+        base = parsed["link"].split("#", 1)[0]
+        label = quote(f"{flag(code)} {code}-{n:03d}")
+        lines.append(f"{base}#{label}")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    return len(lines)
+
+
 def main():
     global geo_starts, geo_ends, geo_codes
 
     if shutil.which(SINGBOX) is None:
-        sys.exit(f"FATAL: sing-box не найден, {OUT_FILE} не обновлён")
+        sys.exit("FATAL: sing-box не найден, файлы не обновлены")
 
     geo_starts, geo_ends, geo_codes = load_geo()
 
@@ -318,7 +323,7 @@ def main():
             if key in unique:
                 stats["duplicate"] += 1
                 continue
-            unique[key] = {**parsed, "link": link}
+            unique[key] = parsed
 
     items = [(k, v["host"], v["port"]) for k, v in unique.items()]
     ru_ok, fo_ok = [], []
@@ -349,35 +354,39 @@ def main():
         print(f"{k}: {v}")
 
     if not ru_ok and not fo_ok:
-        sys.exit(f"FATAL: ни один сервер не прошёл проверку, {OUT_FILE} не обновлён")
+        sys.exit("FATAL: ни один сервер не прошёл проверку, файлы не обновлены")
+
+    ru_chosen = [(unique[k], code) for _, k, code in ru_ok[:TOP_N]]
+    fo_chosen = [(unique[k], code) for _, k, code in fo_ok[:TOP_N]]
 
     servers, ru_tags, ru_auto, fo_tags, fo_auto = [], [], [], [], []
     n = 0
 
-    def add(bucket, tags, auto):
+    def add(chosen, tags, auto):
         nonlocal n
-        for _, key, code in bucket[:TOP_N]:
+        for parsed, code in chosen:
             n += 1
             tag = f"{flag(code)} {code}-{n:03d}"
-            servers.append(singbox_outbound(unique[key], tag))
+            servers.append(singbox_outbound(parsed, tag))
             tags.append(tag)
             if len(auto) < AUTO_N:
                 auto.append(tag)
 
-    add(ru_ok, ru_tags, ru_auto)
-    add(fo_ok, fo_tags, fo_auto)
+    add(ru_chosen, ru_tags, ru_auto)
+    add(fo_chosen, fo_tags, fo_auto)
 
-    print(f"Российских серверов: {len(ru_tags)}, зарубежных: {len(fo_tags)}")
+    print(f"Российских: {len(ru_tags)}, зарубежных: {len(fo_tags)}")
 
     config = build_config(servers, ru_tags, ru_auto, fo_tags, fo_auto)
     good, err = sb_check(config)
     if not good:
-        sys.exit(f"FATAL: конфиг не прошёл sing-box check, {OUT_FILE} не обновлён:\n{err}")
+        sys.exit(f"FATAL: конфиг не прошёл sing-box check, файлы не обновлены:\n{err}")
 
+    count = write_list(ru_chosen, fo_chosen, LIST_FILE)
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=1)
 
-    print(f"Записано серверов: {len(servers)}")
+    print(f"Записано: {OUT_FILE} (Hiddify) и {LIST_FILE} (v2rayNG, {count} ссылок)")
 
 
 if __name__ == "__main__":
