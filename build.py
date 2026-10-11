@@ -20,10 +20,10 @@ LIST_FILE = "list.txt"
 SUB_FILE = "sub.txt"
 SOURCES_FILE = "sources.txt"
 
-MAX_RU = 400              # российских серверов в списке
-MAX_FOREIGN = 150         # зарубежных серверов в списке
-MIN_TOTAL = 5             # если серверов меньше, файлы не перезаписываются
-MAX_LATENCY_RU = 2.5      # TCP-задержка с GitHub Actions, секунды
+MAX_TOTAL = 1000          # общий лимит строк в списке
+MAX_RU_SHARE = 600        # не больше стольких российских, остальное зарубежные
+MIN_TOTAL = 5
+MAX_LATENCY_RU = 2.5
 MAX_LATENCY_FOREIGN = 1.0
 WORKERS = 40
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
@@ -143,7 +143,6 @@ def parse_vless(link):
 
 
 def mobile_rank(parsed, latency):
-    """Меньше = лучше: reality, затем порт 443, затем TCP, затем задержка."""
     return (
         0 if parsed["security"] == "reality" else 1,
         0 if parsed["port"] == 443 else 1,
@@ -176,6 +175,15 @@ def load_sources():
     with open(SOURCES_FILE, encoding="utf-8") as f:
         lines = [l.strip() for l in f if l.strip() and not l.startswith("#")]
     return [l for l in lines if l.startswith(("http://", "https://")) and l.isascii()]
+
+
+def pick(ru_ok, fo_ok):
+    """Берёт не больше MAX_TOTAL: RU до MAX_RU_SHARE, остаток добирается зарубежными.
+    Если зарубежных мало, оставшиеся места занимают дополнительные RU."""
+    ru_take = min(len(ru_ok), MAX_RU_SHARE)
+    fo_take = min(len(fo_ok), MAX_TOTAL - ru_take)
+    ru_take = min(len(ru_ok), MAX_TOTAL - fo_take)
+    return ru_ok[:ru_take], fo_ok[:fo_take]
 
 
 def main():
@@ -230,14 +238,16 @@ def main():
     for k, v in stats.most_common():
         print(f"{k}: {v}")
 
-    chosen = [(u, c) for _, u, c in ru_ok[:MAX_RU]] + [(u, c) for _, u, c in fo_ok[:MAX_FOREIGN]]
+    ru_sel, fo_sel = pick(ru_ok, fo_ok)
+    chosen = [(u, c) for _, u, c in ru_sel] + [(u, c) for _, u, c in fo_sel]
+
     if len(chosen) < MIN_TOTAL:
         sys.exit(f"FATAL: найдено серверов {len(chosen)}, файлы не обновлены")
 
     lines = []
     for n, (u, code) in enumerate(chosen, 1):
         base = u["link"].split("#", 1)[0]
-        label = quote(f"{flag(code)} {code}-{n:03d}")
+        label = quote(f"{flag(code)} {code}-{n:04d}")
         lines.append(f"{base}#{label}")
 
     text = "\n".join(lines) + "\n"
@@ -246,9 +256,7 @@ def main():
     with open(SUB_FILE, "w", encoding="utf-8") as f:
         f.write(base64.b64encode(text.encode("utf-8")).decode("ascii") + "\n")
 
-    ru_count = min(len(ru_ok), MAX_RU)
-    fo_count = min(len(fo_ok), MAX_FOREIGN)
-    print(f"Записано: {len(lines)} серверов (RU: {ru_count}, зарубежных: {fo_count})")
+    print(f"Записано: {len(lines)} серверов (RU: {len(ru_sel)}, зарубежных: {len(fo_sel)})")
 
 
 if __name__ == "__main__":
