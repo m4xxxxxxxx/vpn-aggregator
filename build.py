@@ -20,8 +20,8 @@ LIST_FILE = "list.txt"
 SUB_FILE = "sub.txt"
 SOURCES_FILE = "sources.txt"
 
-MAX_TOTAL = 1000          # общий лимит строк в списке
-MAX_RU_SHARE = 600        # не больше стольких российских, остальное зарубежные
+MAX_TOTAL = 1000
+MAX_RU_SHARE = 600
 MIN_TOTAL = 5
 MAX_LATENCY_RU = 2.5
 MAX_LATENCY_FOREIGN = 1.0
@@ -178,8 +178,6 @@ def load_sources():
 
 
 def pick(ru_ok, fo_ok):
-    """Берёт не больше MAX_TOTAL: RU до MAX_RU_SHARE, остаток добирается зарубежными.
-    Если зарубежных мало, оставшиеся места занимают дополнительные RU."""
     ru_take = min(len(ru_ok), MAX_RU_SHARE)
     fo_take = min(len(fo_ok), MAX_TOTAL - ru_take)
     ru_take = min(len(ru_ok), MAX_TOTAL - fo_take)
