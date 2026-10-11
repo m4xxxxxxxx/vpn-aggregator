@@ -1,4 +1,4 @@
-name: update-list
+name: update
 
 on:
   schedule:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: update-list
+  group: update
   cancel-in-progress: true
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
           python-version: "3.12"
 
       - name: Build list
-        run: python build_list.py
+        run: python build.py
 
       - name: Commit and push
         run: |
