@@ -27,7 +27,7 @@ SINGBOX = "sing-box"
 TOP_N = 60            # сколько серверов попадает в профиль
 AUTO_N = 25           # сколько из них тестирует группа auto (экономия батареи)
 MAX_LATENCY = 1.0     # TCP-задержка с GitHub Actions, секунды
-TEST_URL = "https://www.gstatic.com/generate_204"
+TEST_URL = "https://claude.ai/"
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
 
 ALLOWED_CODES = {
