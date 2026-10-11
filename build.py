@@ -24,31 +24,42 @@ PROTOCOL = "vless://"
 OUT_FILE = "config.json"
 SINGBOX = "sing-box"
 
-TOP_N = 60            # сколько серверов попадает в профиль
-AUTO_N = 25           # сколько из них тестирует группа auto (экономия батареи)
-MAX_LATENCY = 1.0     # TCP-задержка с GitHub Actions, секунды
-TEST_URL = "https://claude.ai/"
+TOP_N = 60                  # серверов в каждой группе (зарубежные и российские)
+AUTO_N = 20                 # из каждой группы в автотест на телефоне
+MAX_LATENCY_FOREIGN = 1.0   # TCP-задержка с GitHub Actions, секунды
+MAX_LATENCY_RU = 2.5
+TEST_URL_FOREIGN = "https://www.gstatic.com/generate_204"
+TEST_URL_RU = "https://ya.ru/"
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
 
-ALLOWED_CODES = {
+RU = "RU"
+FOREIGN_CODES = {
     "US", "CA", "GB", "DE", "FR", "NL", "SE", "FI", "NO", "DK", "CH", "IE",
     "AT", "BE", "IT", "ES", "PT", "PL", "CZ", "JP", "SG", "AU",
 }
 
-BLOCKED_NAME_RE = re.compile(
+# Название зарубежного сервера с этими словами пропускаем.
+# Для российских серверов (код RU) проверка не применяется.
+FOREIGN_BLOCK_RE = re.compile(
     r"(?<!\w)(Russia|Russian|РФ|Россия|Timeweb|Selectel|Beget|Yandex|VK|Belarus|China|Hong Kong|Iran)(?!\w)",
     re.IGNORECASE,
 )
 
-PROXY_DOMAINS = [
+# Сервисы, которым нужен зарубежный выход: российский IP их обычно не пускает
+AI_DOMAINS = [
     "openai.com", "chatgpt.com", "oaistatic.com", "oaiusercontent.com",
     "claude.ai", "anthropic.com",
     "gemini.google.com", "aistudio.google.com", "generativelanguage.googleapis.com",
     "alkalimakersuite-pa.clients6.google.com", "proactivebackend-pa.googleapis.com",
     "deepmind.google", "bard.google.com",
+]
+
+# Остальные сервисы идут через текущий выбор в группе proxy
+OTHER_PROXY_DOMAINS = [
     "youtube.com", "youtu.be", "googlevideo.com", "ytimg.com", "ggpht.com",
     "telegram.org", "t.me", "telegram.me", "telegra.ph",
 ]
+
 DIRECT_DOMAINS = [".ru", ".xn--p1ai", ".su"]
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -154,7 +165,7 @@ def parse_vless(link):
 
 
 def mobile_rank(parsed, latency):
-    """Меньше = лучше. Сначала reality, потом 443 порт, потом TCP, потом задержка."""
+    """Меньше = лучше: reality, затем порт 443, затем TCP, затем задержка."""
     return (
         0 if parsed["security"] == "reality" else 1,
         0 if parsed["port"] == 443 else 1,
@@ -218,7 +229,7 @@ def evaluate(item):
     code = country_of(ip)
     if code is None:
         return "geo_unknown", key, None, None
-    if code not in ALLOWED_CODES:
+    if code != RU and code not in FOREIGN_CODES:
         return "country_not_allowed", key, None, None
     t0 = time.monotonic()
     try:
@@ -226,10 +237,7 @@ def evaluate(item):
             pass
     except Exception:
         return "dead", key, None, None
-    latency = time.monotonic() - t0
-    if latency > MAX_LATENCY:
-        return "slow", key, latency, code
-    return "ok", key, latency, code
+    return "ok", key, time.monotonic() - t0, code
 
 
 def load_sources():
@@ -238,33 +246,45 @@ def load_sources():
     return [l for l in lines if l.startswith(("http://", "https://")) and l.isascii()]
 
 
-def build_config(servers, auto_tags):
-    all_tags = [s["tag"] for s in servers]
+def build_config(servers, ru_tags, ru_auto, fo_tags, fo_auto):
+    outs = []
+    members = []
+    if ru_tags:
+        outs.append({
+            "type": "urltest", "tag": "auto-ru", "outbounds": ru_auto,
+            "url": TEST_URL_RU, "interval": "10m", "tolerance": 200,
+        })
+        members.append("auto-ru")
+    if fo_tags:
+        outs.append({
+            "type": "urltest", "tag": "auto", "outbounds": fo_auto,
+            "url": TEST_URL_FOREIGN, "interval": "10m", "tolerance": 200,
+        })
+        members.append("auto")
+
+    all_tags = ru_tags + fo_tags
+    proxy = {
+        "type": "selector", "tag": "proxy",
+        "outbounds": members + all_tags,
+        "default": members[0],
+    }
+
+    ai_target = "auto" if fo_tags else "proxy"
+
     return {
         "log": {"level": "warn"},
         "dns": {
             "servers": [{"tag": "remote", "type": "https", "server": "1.1.1.1", "detour": "proxy"}],
             "final": "remote",
         },
-        "outbounds": [
-            {"type": "selector", "tag": "proxy", "outbounds": ["auto"] + all_tags, "default": "auto"},
-            {
-                "type": "urltest",
-                "tag": "auto",
-                "outbounds": auto_tags,
-                "url": TEST_URL,
-                "interval": "10m",
-                "tolerance": 200,
-            },
-            *servers,
-            {"type": "direct", "tag": "direct"},
-        ],
+        "outbounds": [proxy, *outs, *servers, {"type": "direct", "tag": "direct"}],
         "route": {
             "rules": [
                 {"action": "sniff"},
                 {"ip_is_private": True, "outbound": "direct"},
-                {"domain_suffix": PROXY_DOMAINS, "outbound": "proxy"},
                 {"domain_suffix": DIRECT_DOMAINS, "outbound": "direct"},
+                {"domain_suffix": AI_DOMAINS, "outbound": ai_target},
+                {"domain_suffix": OTHER_PROXY_DOMAINS, "outbound": "proxy"},
             ],
             "final": "proxy",
             "auto_detect_interface": True,
@@ -290,9 +310,6 @@ def main():
             continue
         print(f"{len(lines):6d}  {url}")
         for link in lines:
-            if BLOCKED_NAME_RE.search(name_of(link)):
-                stats["blocked_name"] += 1
-                continue
             parsed = parse_vless(link)
             if parsed is None:
                 stats["bad_format"] += 1
@@ -301,37 +318,58 @@ def main():
             if key in unique:
                 stats["duplicate"] += 1
                 continue
-            unique[key] = parsed
+            unique[key] = {**parsed, "link": link}
 
     items = [(k, v["host"], v["port"]) for k, v in unique.items()]
-    ok = []
+    ru_ok, fo_ok = [], []
     with ThreadPoolExecutor(max_workers=30) as ex:
         for status, key, latency, code in ex.map(evaluate, items):
             stats[status] += 1
-            if status == "ok":
-                ok.append((mobile_rank(unique[key], latency), key, code, latency))
+            if status != "ok":
+                continue
+            u = unique[key]
+            if code == RU:
+                if latency > MAX_LATENCY_RU:
+                    stats["ru_slow"] += 1
+                    continue
+                ru_ok.append((mobile_rank(u, latency), key, code))
+            else:
+                if FOREIGN_BLOCK_RE.search(name_of(u["link"])):
+                    stats["blocked_name"] += 1
+                    continue
+                if latency > MAX_LATENCY_FOREIGN:
+                    stats["foreign_slow"] += 1
+                    continue
+                fo_ok.append((mobile_rank(u, latency), key, code))
 
-    ok.sort(key=lambda x: x[0])
+    ru_ok.sort(key=lambda x: x[0])
+    fo_ok.sort(key=lambda x: x[0])
 
     for k, v in stats.most_common():
         print(f"{k}: {v}")
 
-    chosen = ok[:TOP_N]
-    if not chosen:
+    if not ru_ok and not fo_ok:
         sys.exit(f"FATAL: ни один сервер не прошёл проверку, {OUT_FILE} не обновлён")
 
-    reality_count = sum(1 for _, key, _, _ in chosen if unique[key]["security"] == "reality")
-    port443_count = sum(1 for _, key, _, _ in chosen if unique[key]["port"] == 443)
-    print(f"В профиле: {len(chosen)}, reality: {reality_count}, порт 443: {port443_count}")
+    servers, ru_tags, ru_auto, fo_tags, fo_auto = [], [], [], [], []
+    n = 0
 
-    servers, auto_tags = [], []
-    for i, (_, key, code, latency) in enumerate(chosen, 1):
-        tag = f"{flag(code)} {code}-{i:02d}"
-        servers.append(singbox_outbound(unique[key], tag))
-        if i <= AUTO_N:
-            auto_tags.append(tag)
+    def add(bucket, tags, auto):
+        nonlocal n
+        for _, key, code in bucket[:TOP_N]:
+            n += 1
+            tag = f"{flag(code)} {code}-{n:03d}"
+            servers.append(singbox_outbound(unique[key], tag))
+            tags.append(tag)
+            if len(auto) < AUTO_N:
+                auto.append(tag)
 
-    config = build_config(servers, auto_tags)
+    add(ru_ok, ru_tags, ru_auto)
+    add(fo_ok, fo_tags, fo_auto)
+
+    print(f"Российских серверов: {len(ru_tags)}, зарубежных: {len(fo_tags)}")
+
+    config = build_config(servers, ru_tags, ru_auto, fo_tags, fo_auto)
     good, err = sb_check(config)
     if not good:
         sys.exit(f"FATAL: конфиг не прошёл sing-box check, {OUT_FILE} не обновлён:\n{err}")
@@ -339,7 +377,7 @@ def main():
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=1)
 
-    print(f"Записано серверов: {len(servers)}, в auto: {len(auto_tags)}")
+    print(f"Записано серверов: {len(servers)}")
 
 
 if __name__ == "__main__":
