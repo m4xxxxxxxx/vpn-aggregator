@@ -8,10 +8,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: update
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -19,13 +23,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build list
+      - name: Install sing-box
+        run: |
+          curl -fsSL -o sb.tar.gz https://github.com/SagerNet/sing-box/releases/download/v1.13.0/sing-box-1.13.0-linux-amd64.tar.gz
+          tar -xzf sb.tar.gz
+          sudo install -m 755 sing-box-1.13.0-linux-amd64/sing-box /usr/local/bin/sing-box
+          sing-box version
+
+      - name: Build config
         run: python build.py
 
       - name: Commit and push
         run: |
           git config user.name "bot"
           git config user.email "bot@users.noreply.github.com"
-          git add list.txt sub.txt
-          git commit -m "update config $       (date -u +%H:%M)" || exit 0
+          git add config.json
+          git commit -m "update config $(date -u +%H:%M)" || exit 0
           git push
