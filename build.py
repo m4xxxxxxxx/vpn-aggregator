@@ -2,14 +2,9 @@ import base64
 import bisect
 import csv
 import io
-import json
-import os
 import re
-import shutil
 import socket
-import subprocess
 import sys
-import tempfile
 import time
 import urllib.request
 from collections import Counter
@@ -21,16 +16,16 @@ socket.setdefaulttimeout(5)
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 PROTOCOL = "vless://"
-OUT_FILE = "config.json"
 LIST_FILE = "list.txt"
-SINGBOX = "sing-box"
+SUB_FILE = "sub.txt"
+SOURCES_FILE = "sources.txt"
 
-TOP_N = 60
-AUTO_N = 20
+MAX_RU = 400              # российских серверов в списке
+MAX_FOREIGN = 150         # зарубежных серверов в списке
+MIN_TOTAL = 5             # если серверов меньше, файлы не перезаписываются
+MAX_LATENCY_RU = 2.5      # TCP-задержка с GitHub Actions, секунды
 MAX_LATENCY_FOREIGN = 1.0
-MAX_LATENCY_RU = 2.5
-TEST_URL_FOREIGN = "https://www.gstatic.com/generate_204"
-TEST_URL_RU = "https://ya.ru/"
+WORKERS = 40
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
 
 RU = "RU"
@@ -43,21 +38,6 @@ FOREIGN_BLOCK_RE = re.compile(
     r"(?<!\w)(Russia|Russian|РФ|Россия|Timeweb|Selectel|Beget|Yandex|VK|Belarus|China|Hong Kong|Iran)(?!\w)",
     re.IGNORECASE,
 )
-
-AI_DOMAINS = [
-    "openai.com", "chatgpt.com", "oaistatic.com", "oaiusercontent.com",
-    "claude.ai", "anthropic.com",
-    "gemini.google.com", "aistudio.google.com", "generativelanguage.googleapis.com",
-    "alkalimakersuite-pa.clients6.google.com", "proactivebackend-pa.googleapis.com",
-    "deepmind.google", "bard.google.com",
-]
-
-OTHER_PROXY_DOMAINS = [
-    "youtube.com", "youtu.be", "googlevideo.com", "ytimg.com", "ggpht.com",
-    "telegram.org", "t.me", "telegram.me", "telegra.ph",
-]
-
-DIRECT_DOMAINS = [".ru", ".xn--p1ai", ".su"]
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 HOST_RE = re.compile(r"^[A-Za-z0-9.\-]{1,253}$")
@@ -158,62 +138,18 @@ def parse_vless(link):
         if not SID_RE.match(params.get("sid", "")):
             return None
 
-    return {"host": host, "port": port, "uuid": uuid, "security": security, "params": params, "link": link}
+    return {"host": host, "port": port, "uuid": uuid, "security": security,
+            "params": params, "link": link}
 
 
 def mobile_rank(parsed, latency):
+    """Меньше = лучше: reality, затем порт 443, затем TCP, затем задержка."""
     return (
         0 if parsed["security"] == "reality" else 1,
         0 if parsed["port"] == 443 else 1,
         0 if parsed["params"].get("type", "tcp") == "tcp" else 1,
         latency,
     )
-
-
-def singbox_outbound(parsed, tag):
-    q = parsed["params"]
-    ob = {
-        "type": "vless",
-        "tag": tag,
-        "server": parsed["host"],
-        "server_port": parsed["port"],
-        "uuid": parsed["uuid"],
-        "packet_encoding": "xudp",
-    }
-    if q.get("flow"):
-        ob["flow"] = q["flow"]
-
-    net = q.get("type", "tcp")
-    if net == "ws":
-        t = {"type": "ws", "path": q.get("path", "/")}
-        if q.get("host"):
-            t["headers"] = {"Host": q["host"]}
-        ob["transport"] = t
-    elif net == "grpc":
-        ob["transport"] = {"type": "grpc", "service_name": q.get("serviceName", "")}
-
-    tls = {"enabled": True, "server_name": q.get("sni") or parsed["host"]}
-    fp = q.get("fp") or ("chrome" if parsed["security"] == "reality" else "")
-    if fp:
-        tls["utls"] = {"enabled": True, "fingerprint": fp}
-    if parsed["security"] == "reality":
-        tls["reality"] = {"enabled": True, "public_key": q["pbk"], "short_id": q.get("sid", "")}
-    ob["tls"] = tls
-    return ob
-
-
-def sb_check(cfg):
-    fd, path = tempfile.mkstemp(suffix=".json")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(cfg, f)
-        r = subprocess.run([SINGBOX, "check", "-c", path],
-                           capture_output=True, text=True, timeout=60)
-        return r.returncode == 0, (r.stderr or r.stdout).strip()[:800]
-    except Exception as e:
-        return False, str(e)
-    finally:
-        os.unlink(path)
 
 
 def evaluate(item):
@@ -237,72 +173,13 @@ def evaluate(item):
 
 
 def load_sources():
-    with open("sources.txt", encoding="utf-8") as f:
+    with open(SOURCES_FILE, encoding="utf-8") as f:
         lines = [l.strip() for l in f if l.strip() and not l.startswith("#")]
     return [l for l in lines if l.startswith(("http://", "https://")) and l.isascii()]
 
 
-def build_config(servers, ru_tags, ru_auto, fo_tags, fo_auto):
-    outs, members = [], []
-    if ru_tags:
-        outs.append({
-            "type": "urltest", "tag": "auto-ru", "outbounds": ru_auto,
-            "url": TEST_URL_RU, "interval": "10m", "tolerance": 200,
-        })
-        members.append("auto-ru")
-    if fo_tags:
-        outs.append({
-            "type": "urltest", "tag": "auto", "outbounds": fo_auto,
-            "url": TEST_URL_FOREIGN, "interval": "10m", "tolerance": 200,
-        })
-        members.append("auto")
-
-    proxy = {
-        "type": "selector", "tag": "proxy",
-        "outbounds": members + ru_tags + fo_tags,
-        "default": members[0],
-    }
-    ai_target = "auto" if fo_tags else "proxy"
-
-    return {
-        "log": {"level": "warn"},
-        "dns": {
-            "servers": [{"tag": "remote", "type": "https", "server": "1.1.1.1", "detour": "proxy"}],
-            "final": "remote",
-        },
-        "outbounds": [proxy, *outs, *servers, {"type": "direct", "tag": "direct"}],
-        "route": {
-            "rules": [
-                {"action": "sniff"},
-                {"ip_is_private": True, "outbound": "direct"},
-                {"domain_suffix": DIRECT_DOMAINS, "outbound": "direct"},
-                {"domain_suffix": AI_DOMAINS, "outbound": ai_target},
-                {"domain_suffix": OTHER_PROXY_DOMAINS, "outbound": "proxy"},
-            ],
-            "final": "proxy",
-            "auto_detect_interface": True,
-        },
-    }
-
-
-def write_list(ru_items, fo_items, path):
-    """Подписка для v2rayNG: обычные vless-ссылки, российские первыми."""
-    lines = []
-    for n, (parsed, code) in enumerate(ru_items + fo_items, 1):
-        base = parsed["link"].split("#", 1)[0]
-        label = quote(f"{flag(code)} {code}-{n:03d}")
-        lines.append(f"{base}#{label}")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
-    return len(lines)
-
-
 def main():
     global geo_starts, geo_ends, geo_codes
-
-    if shutil.which(SINGBOX) is None:
-        sys.exit("FATAL: sing-box не найден, файлы не обновлены")
-
     geo_starts, geo_ends, geo_codes = load_geo()
 
     unique = {}
@@ -327,7 +204,7 @@ def main():
 
     items = [(k, v["host"], v["port"]) for k, v in unique.items()]
     ru_ok, fo_ok = [], []
-    with ThreadPoolExecutor(max_workers=30) as ex:
+    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
         for status, key, latency, code in ex.map(evaluate, items):
             stats[status] += 1
             if status != "ok":
@@ -337,7 +214,7 @@ def main():
                 if latency > MAX_LATENCY_RU:
                     stats["ru_slow"] += 1
                     continue
-                ru_ok.append((mobile_rank(u, latency), key, code))
+                ru_ok.append((mobile_rank(u, latency), u, code))
             else:
                 if FOREIGN_BLOCK_RE.search(name_of(u["link"])):
                     stats["blocked_name"] += 1
@@ -345,7 +222,7 @@ def main():
                 if latency > MAX_LATENCY_FOREIGN:
                     stats["foreign_slow"] += 1
                     continue
-                fo_ok.append((mobile_rank(u, latency), key, code))
+                fo_ok.append((mobile_rank(u, latency), u, code))
 
     ru_ok.sort(key=lambda x: x[0])
     fo_ok.sort(key=lambda x: x[0])
@@ -353,40 +230,25 @@ def main():
     for k, v in stats.most_common():
         print(f"{k}: {v}")
 
-    if not ru_ok and not fo_ok:
-        sys.exit("FATAL: ни один сервер не прошёл проверку, файлы не обновлены")
+    chosen = [(u, c) for _, u, c in ru_ok[:MAX_RU]] + [(u, c) for _, u, c in fo_ok[:MAX_FOREIGN]]
+    if len(chosen) < MIN_TOTAL:
+        sys.exit(f"FATAL: найдено серверов {len(chosen)}, файлы не обновлены")
 
-    ru_chosen = [(unique[k], code) for _, k, code in ru_ok[:TOP_N]]
-    fo_chosen = [(unique[k], code) for _, k, code in fo_ok[:TOP_N]]
+    lines = []
+    for n, (u, code) in enumerate(chosen, 1):
+        base = u["link"].split("#", 1)[0]
+        label = quote(f"{flag(code)} {code}-{n:03d}")
+        lines.append(f"{base}#{label}")
 
-    servers, ru_tags, ru_auto, fo_tags, fo_auto = [], [], [], [], []
-    n = 0
+    text = "\n".join(lines) + "\n"
+    with open(LIST_FILE, "w", encoding="utf-8") as f:
+        f.write(text)
+    with open(SUB_FILE, "w", encoding="utf-8") as f:
+        f.write(base64.b64encode(text.encode("utf-8")).decode("ascii") + "\n")
 
-    def add(chosen, tags, auto):
-        nonlocal n
-        for parsed, code in chosen:
-            n += 1
-            tag = f"{flag(code)} {code}-{n:03d}"
-            servers.append(singbox_outbound(parsed, tag))
-            tags.append(tag)
-            if len(auto) < AUTO_N:
-                auto.append(tag)
-
-    add(ru_chosen, ru_tags, ru_auto)
-    add(fo_chosen, fo_tags, fo_auto)
-
-    print(f"Российских: {len(ru_tags)}, зарубежных: {len(fo_tags)}")
-
-    config = build_config(servers, ru_tags, ru_auto, fo_tags, fo_auto)
-    good, err = sb_check(config)
-    if not good:
-        sys.exit(f"FATAL: конфиг не прошёл sing-box check, файлы не обновлены:\n{err}")
-
-    count = write_list(ru_chosen, fo_chosen, LIST_FILE)
-    with open(OUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(config, f, ensure_ascii=False, indent=1)
-
-    print(f"Записано: {OUT_FILE} (Hiddify) и {LIST_FILE} (v2rayNG, {count} ссылок)")
+    ru_count = min(len(ru_ok), MAX_RU)
+    fo_count = min(len(fo_ok), MAX_FOREIGN)
+    print(f"Записано: {len(lines)} серверов (RU: {ru_count}, зарубежных: {fo_count})")
 
 
 if __name__ == "__main__":
