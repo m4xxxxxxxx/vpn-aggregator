@@ -1,14 +1,35 @@
-https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt
+name: update
 
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt&lang=de-de
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
 
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt
+permissions:
+  contents: write
 
-https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt
+concurrency:
+  group: update
+  cancel-in-progress: true
 
-https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
 
-https://alley.serv00.net/youtube
-https://alley.serv00.net/other
-https://alley.serv00.net/whitelist
-https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build list
+        run: python build.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add list.txt sub.txt
+          git commit -m "update list $(date -u +%H:%M)" || exit 0
+          git push
