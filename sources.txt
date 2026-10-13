@@ -10,6 +10,8 @@ https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main
 
 https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt
 
+https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt
+
 https://alley.serv00.net/youtube
 https://alley.serv00.net/other
 https://alley.serv00.net/whitelist
