@@ -1,0 +1,10 @@
+# Публичные Telegram-каналы для парсинга через https://t.me/s/<channel>
+# Указывать только username канала (без @ и без https://t.me/)
+vless_keys
+v2ray_configs_pool
+free_v2ray_configs
+v2rayng_vpn
+outline_vless_vpn
+vpn_vless_free
+shadowsocks_keys
+xray_configs
