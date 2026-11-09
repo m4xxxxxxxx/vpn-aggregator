@@ -1,0 +1,4 @@
+hysteria2://auth@host:port/?insecure=1&obfs=...#Notorgamers
+ss://base64(method:password)@host:port?plugin=...#Notorgamers
+ss://base64(method:password@host:port)#Notorgamers
+vmess://base64(JSON)#Notorgamers
