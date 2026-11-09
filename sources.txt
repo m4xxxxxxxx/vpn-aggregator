@@ -1,22 +1,23 @@
-https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt
+к
+# ==============================================================================
+# БЛОК РУЧНЫХ ИСТОЧНИКОВ (discover.py никогда не удаляет строки из этого блока)
+# Формат: URL # tags=тег1,тег2 status=active|dead fails=0 last_count=0
+# ==============================================================================
+# MANUAL
+https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt # tags=manual,whitelist,priority status=active fails=0 last_count=0
+https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt # tags=manual,whitelist,priority,cidr status=active fails=0 last_count=0
+https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt # tags=manual,whitelist,priority status=active fails=0 last_count=0
+https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt # tags=manual,whitelist,priority status=active fails=0 last_count=0
+https://alley.serv00.net/whitelist # tags=manual,whitelist,priority status=active fails=0 last_count=0
+https://alley.serv00.net/youtube # tags=manual,whitelist,priority status=active fails=0 last_count=0
+https://alley.serv00.net/other # tags=manual,whitelist,priority status=active fails=0 last_count=0
+https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt # tags=manual,general status=active fails=0 last_count=0
+https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt # tags=manual,general status=active fails=0 last_count=0
+https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt # tags=manual,general status=active fails=0 last_count=0
+https://nyrokume.github.io/vless-hub/sub/protocol/vless.txt # tags=manual,general status=active fails=0 last_count=0
+https://raw.githubusercontent.com/ShatakVPN/ConfigForge-V2Ray/main/configs/vless.txt # tags=manual,general status=active fails=0 last_count=0
 
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt&lang=de-de
-
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt
-
-https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt
-
-https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt
-
-https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt
-
-https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt
-
-https://nyrokume.github.io/vless-hub/sub/protocol/vless.txt
-
-https://raw.githubusercontent.com/ShatakVPN/ConfigForge-V2Ray/main/configs/vless.txt
-
-https://alley.serv00.net/youtube
-https://alley.serv00.net/other
-https://alley.serv00.net/whitelist
-https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt
+# ==============================================================================
+# БЛОК АВТОМАТИЧЕСКИХ ИСТОЧНИКОВ (управляется discover.py и build.py)
+# ==============================================================================
+# AUTO
