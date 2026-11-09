@@ -1,35 +1,80 @@
-name: update
+name: Update VPN Subscriptions
 
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "15 */2 * * *"
   workflow_dispatch:
+    inputs:
+      force_discover:
+        description: "Принудительно запустить discover.py"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
 
 concurrency:
-  group: update
-  cancel-in-progress: true
+  group: vpn-aggregator-update
+  cancel-in-progress: false
 
 jobs:
-  build:
+  update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
+    timeout-minutes: 25
 
-      - uses: actions/setup-python@v5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Build list
-        run: python build.py
-
-      - name: Commit and push
+      - name: Install sing-box
         run: |
-          git config user.name "bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add list.txt sub.txt
-          git commit -m "update list $(date -u +%H:%M)" || exit 0
-          git push
+          set -e
+          SB_VERSION="1.10.7"
+          ARCH="amd64"
+          TARBALL="sing-box-${SB_VERSION}-linux-${ARCH}.tar.gz"
+          URL="https://github.com/SagerNet/sing-box/releases/download/v${SB_VERSION}/${TARBALL}"
+          curl -fsSL "$URL" -o "/tmp/${TARBALL}"
+          tar -xzf "/tmp/${TARBALL}" -C /tmp
+          sudo mv "/tmp/sing-box-${SB_VERSION}-linux-${ARCH}/sing-box" /usr/local/bin/sing-box
+          sudo chmod +x /usr/local/bin/sing-box
+          sing-box version
+
+      - name: Run source discovery (once per 24h or on manual force)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_DISCOVER: ${{ github.event.inputs.force_discover }}
+        run: |
+          NOW=$(date +%s)
+          LAST=0
+          if [ -f .last_discover ]; then
+            LAST=$(cat .last_discover || echo 0)
+          fi
+          DIFF=$((NOW - LAST))
+          if [ "$FORCE_DISCOVER" = "true" ] || [ "$DIFF" -ge 86400 ]; then
+            echo "Запуск автопоиска источников discover.py..."
+            python3 discover.py
+            echo "$NOW" > .last_discover
+          else
+            echo "Пропуск discover.py (прошло ${DIFF} сек из 86400)"
+          fi
+
+      - name: Build and verify subscriptions
+        run: python3 build.py
+
+      - name: Commit and push updated lists
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "Изменений нет"
+          else
+            git commit -m "chore: update configs ($(date -u +'%Y-%m-%d %H:%M UTC'))"
+            git pull --rebase origin main || true
+            git push
+          fi
