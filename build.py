@@ -41,8 +41,9 @@ LEGACY_LIST = "list.txt"
 LEGACY_SUB = "sub.txt"
 
 MAX_FILE_BYTES = 5 * 1024 * 1024
-MAX_CANDIDATES_FOR_SINGBOX = 300  # жесткий лимит, чтобы Actions не падал по таймауту
-MAX_MOBILE_OUT = 150              # топ-150 лучших серверов для быстрой проверки с телефона
+MAX_GEO_BYTES = 30 * 1024 * 1024  # 30 МБ для CSV-базы GeoIP
+MAX_CANDIDATES_FOR_SINGBOX = 300
+MAX_MOBILE_OUT = 150
 FAST_LIMIT = 50
 MIN_TOTAL = 3
 BATCH_SIZE = 50
@@ -55,7 +56,6 @@ GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geo
 
 AI_BLOCKED_COUNTRIES = {"RU", "BY", "CN", "HK", "MO", "IR", "KP", "SY", "CU"}
 
-# Домены маскировки (SNI), которые пропускаются мобильными операторами РФ в режиме белых списков
 WHITELIST_SNI_DOMAINS = (
     "vk.com", "vk.ru", "userapi.com", "yandex.ru", "yandex.net", "ya.ru", "dzen.ru",
     "mail.ru", "imgsmail.ru", "ok.ru", "ozon.ru", "ozone.ru", "wb.ru", "wildberries.ru",
@@ -83,12 +83,12 @@ def flag(code):
     return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code)
 
 
-def safe_http_get(url, timeout=20):
+def safe_http_get(url, timeout=20, max_bytes=MAX_FILE_BYTES):
     req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = r.read(MAX_FILE_BYTES + 1)
-        if len(data) > MAX_FILE_BYTES:
-            raise ValueError("Превышен лимит 5 МБ")
+        data = r.read(max_bytes + 1)
+        if len(data) > max_bytes:
+            raise ValueError(f"Превышен лимит {max_bytes // (1024 * 1024)} МБ")
         if b"\x00" in data[:1024]:
             raise ValueError("Бинарный файл")
         return data.decode("utf-8", errors="ignore")
@@ -96,7 +96,7 @@ def safe_http_get(url, timeout=20):
 
 def load_geo():
     try:
-        raw = safe_http_get(GEO_CSV_URL, 60)
+        raw = safe_http_get(GEO_CSV_URL, timeout=60, max_bytes=MAX_GEO_BYTES)
     except Exception as e:
         sys.exit(f"FATAL: GeoIP не загружен ({e}), файлы не обновлены")
     starts, ends, codes = [], [], []
@@ -290,7 +290,6 @@ def save_history(history):
 
 
 def parse_vless_mobile(link):
-    """Строгий парсер под мобильные сети РФ: только VLESS + Reality на порту 443."""
     link = link.strip()
     if not link.lower().startswith("vless://"):
         return None
@@ -301,7 +300,6 @@ def parse_vless_mobile(link):
     except Exception:
         return None
 
-    # На улице через мобильного оператора выживает практически только порт 443
     if port != 443:
         return None
     if not UUID_RE.match(uuid) or not HOST_RE.match(host):
@@ -638,7 +636,6 @@ def main():
     wl_cidr_starts, wl_cidr_ends = rebuild_cidr_index(cidr_networks)
     print(f"Индекс CIDR белых списков: {len(wl_cidr_starts)} подсетей")
 
-    # Шаг 1: Быстрый DNS + TCP фильтр
     tcp_alive = []
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
         for status, node in ex.map(prefilter_node, unique.values()):
@@ -646,11 +643,6 @@ def main():
             if status == "prefilter_ok":
                 tcp_alive.append(node)
 
-    # Приоритет кандидатов перед глубокой проверкой:
-    # 1. Белый список (SNI / CIDR / профильный источник)
-    # 2. Наличие xtls-rprx-vision
-    # 3. История стабильности (prev_streak)
-    # 4. Минимальный TCP-пинг
     tcp_alive.sort(key=lambda n: (
         0 if (n["sni_whitelisted"] or n["cidr_whitelisted"] or n["from_wl_source"]) else 1,
         0 if n["has_vision"] else 1,
@@ -661,7 +653,6 @@ def main():
     candidates = tcp_alive[:MAX_CANDIDATES_FOR_SINGBOX]
     print(f"Отобрано лучших мобильных кандидатов: {len(candidates)} из {len(tcp_alive)} живых по TCP")
 
-    # Шаг 2: Реальная проверка туннеля через sing-box (с резервным режимом, если бинарника нет)
     singbox_bin = shutil.which("sing-box")
     verified = []
 
@@ -708,7 +699,6 @@ def main():
             n["ai_gemini"] = n["entry_country"] not in AI_BLOCKED_COUNTRIES
             verified.append(n)
 
-    # Шаг 3: Обновление статусов источников
     alive_keys = {n["key"] for n in verified}
     updated_entries = []
     for idx, entry in enumerate(entries):
@@ -733,7 +723,6 @@ def main():
     if updated_entries:
         write_sources(updated_entries)
 
-    # Шаг 4: Обновление history.json и финальное ранжирование под улицу/мобилки
     now_ts = time.time()
     for n in verified:
         k = n["key"]
@@ -743,12 +732,6 @@ def main():
 
     save_history(history)
 
-    # Итоговая сортировка:
-    # 1. Маскировка под белый SNI (.ru, vk, yandex и т.д.) или белый CIDR
-    # 2. Из профильного мобильного источника (igareck / zieng2 / alley)
-    # 3. Протокол Reality-Vision
-    # 4. Стабильность (streak >= 2)
-    # 5. Задержка
     verified.sort(key=lambda n: (
         0 if (n["sni_whitelisted"] or n["cidr_whitelisted"]) else 1,
         0 if n["from_wl_source"] else 1,
@@ -790,7 +773,6 @@ def main():
         if n["ai_claude"] and n["ai_gemini"]:
             ai_links.append(formatted)
 
-    # Если строгий фильтр белых списков дал мало узлов, добиваем лучшими Reality-443
     if len(wl_links) < 20:
         for link in all_links:
             if link not in wl_links and len(wl_links) < MAX_MOBILE_OUT:
@@ -810,7 +792,6 @@ def main():
     write_sub_pair(OUT_AI, ai_links)
     write_sub_pair(OUT_FAST, fast_links)
 
-    # Записываем мобильный белый список сразу в стандартные list.txt и sub.txt
     shutil.copyfile(OUT_WL, LEGACY_LIST)
     shutil.copyfile("whitelist-mobile.base64.txt", LEGACY_SUB)
 
