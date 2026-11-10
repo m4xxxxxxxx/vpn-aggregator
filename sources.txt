@@ -1,64 +1,81 @@
-# MANUAL
-к
 # ==============================================================================
 # БЛОК РУЧНЫХ ИСТОЧНИКОВ (discover.py никогда не удаляет строки из этого блока)
-# Формат: URL # tags=тег1,тег2 status=active|dead fails=0 last_count=0
 # ==============================================================================
-https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt # tags=manual,whitelist,priority status=active fails=0 last_count=0
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt # tags=manual,whitelist,priority,cidr status=active fails=0 last_count=0
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt # tags=manual,whitelist,priority status=active fails=0 last_count=0
-https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt # tags=manual,whitelist,priority status=active fails=0 last_count=0
-https://alley.serv00.net/whitelist # tags=manual,whitelist,priority status=active fails=0 last_count=0
-https://alley.serv00.net/youtube # tags=manual,whitelist,priority status=active fails=0 last_count=0
-https://alley.serv00.net/other # tags=manual,whitelist,priority status=active fails=0 last_count=0
-https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt # tags=manual,general status=active fails=0 last_count=0
-https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt # tags=manual,general status=active fails=0 last_count=0
-https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt # tags=manual,general status=active fails=0 last_count=0
-https://nyrokume.github.io/vless-hub/sub/protocol/vless.txt # tags=manual,general status=active fails=0 last_count=0
-https://raw.githubusercontent.com/ShatakVPN/ConfigForge-V2Ray/main/configs/vless.txt # tags=manual,general status=active fails=0 last_count=0
+# MANUAL
+https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt # tags=manual,priority,whitelist status=dead fails=1 last_count=0
+https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt # tags=cidr,manual,priority,whitelist status=active fails=0 last_count=3
+https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt # tags=manual,priority,whitelist status=active fails=0 last_count=4
+https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt # tags=manual,priority,whitelist status=active fails=0 last_count=3
+https://alley.serv00.net/whitelist # tags=manual,priority,whitelist status=active fails=0 last_count=6
+https://alley.serv00.net/youtube # tags=manual,priority,whitelist status=active fails=0 last_count=107
+https://alley.serv00.net/other # tags=manual,priority,whitelist status=active fails=0 last_count=123
+https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt # tags=general,manual status=active fails=0 last_count=3
+https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt # tags=general,manual status=active fails=0 last_count=112
+https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt # tags=general,manual status=active fails=1 last_count=0
+https://nyrokume.github.io/vless-hub/sub/protocol/vless.txt # tags=general,manual status=active fails=0 last_count=12
+https://raw.githubusercontent.com/ShatakVPN/ConfigForge-V2Ray/main/configs/vless.txt # tags=general,manual status=active fails=0 last_count=10
 
 # ==============================================================================
 # БЛОК АВТОМАТИЧЕСКИХ ИСТОЧНИКОВ (управляется discover.py и build.py)
 # ==============================================================================
-
 # AUTO
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/_V2Hub3_trojan.yaml # tags=auto status=candidate fails=0 last_count=124
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/ALIILAPRO/v2rayNG-Config/sub.txt.yaml # tags=auto status=candidate fails=0 last_count=3905
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium/base64-encoder/ebrasha/_lite.yaml # tags=auto status=candidate fails=0 last_count=284
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/vpnclashfa-backup/MirrorMan/Danialsamadi_v2go_custom.b64.yaml # tags=auto status=candidate fails=0 last_count=4
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/vpnclashfa-backup/MirrorMan/Danialsamadi_v2go_custom.b64.yaml # tags=auto status=candidate fails=0 last_count=109
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/MatinGhanbari/v2ray-configs/super-sub.txt.yaml # tags=auto status=candidate fails=0 last_count=116
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/mahdibland/ShadowsocksAggregator/Eternity.yml.yaml # tags=auto status=candidate fails=0 last_count=13
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/vpnclashfa-backup/SubConfigShuffler/10ium/V2ray/Config/vmess/cloudflare.txt.yaml # tags=auto status=candidate fails=0 last_count=28
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/17.txt # tags=auto status=candidate fails=0 last_count=251
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/Surfboardv2ray/_ipv6.yaml # tags=auto status=candidate fails=0 last_count=16
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/ndsphonemy/_my.yaml # tags=auto status=candidate fails=0 last_count=945
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/MatinGhanbari/_v2ray-configs-super-sub.yaml # tags=auto status=candidate fails=0 last_count=47
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/base64-encoder/NiREvil_SSTime.yaml # tags=auto status=candidate fails=0 last_count=88
-https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/main/sub.txt # tags=auto status=candidate fails=0 last_count=30
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/base64-encoder/FreedomGuard/_Finder_configs.yaml # tags=auto status=candidate fails=0 last_count=21
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/shabane/_merged.yaml # tags=auto status=candidate fails=0 last_count=126
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/FreedomGuard_Finder_configs.yaml # tags=auto status=candidate fails=0 last_count=77
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/mahdibland/ShadowsocksAggregator/EternityAir.yaml # tags=auto status=candidate fails=0 last_count=61
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/roosterkid_V2RAY_BASE64.yaml # tags=auto status=candidate fails=0 last_count=24
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/maimengmeng_custom.yaml # tags=auto status=candidate fails=0 last_count=100
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/roosterkid/_V2RAY_RAW.yaml # tags=auto status=candidate fails=0 last_count=60
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/MatinGhanbari/v2ray-configs/vmess.txt.yaml # tags=auto status=candidate fails=0 last_count=2587
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/HiN-VPN/subscription/source/base64/ar14n24b.yaml # tags=auto status=candidate fails=0 last_count=42
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/_hin-vpn-mix.yaml # tags=auto status=candidate fails=0 last_count=80
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/encoded/10ium_mixed_iran.txt.yaml # tags=auto status=candidate fails=0 last_count=1952
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/vpnclashfa-backup/MirrorMan/hamedp-71_Trojan_hp.b64.yaml # tags=auto status=candidate fails=0 last_count=147
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium/base64-encoder/roosterkid/_V2RAY_RAW.yaml # tags=auto status=candidate fails=0 last_count=40
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/roosterkid_V2RAY_RAW.yaml # tags=auto status=candidate fails=0 last_count=29
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/shabane/_trojan.yaml # tags=auto status=candidate fails=0 last_count=19
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/base64-encoder/miladtahanian_config.yaml # tags=auto status=candidate fails=0 last_count=22
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/V2Hub3/shadowsocks.yaml # tags=auto status=candidate fails=0 last_count=255
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/Surfboardv2ray/TGParse/mixed.yaml # tags=auto status=candidate fails=0 last_count=925
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/itsyebekhe_mix.yaml # tags=auto status=candidate fails=0 last_count=131
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/vpnclashfa-backup/SubConfigShuffler/MahsaNetConfigTopic.txt.yaml # tags=auto status=candidate fails=0 last_count=18
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/25.txt # tags=auto status=candidate fails=0 last_count=260
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/HiN-VPN/subscription/hiddify/ss.yaml # tags=auto status=candidate fails=0 last_count=18
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/MatinGhanbari/-super-sub.yaml # tags=auto status=candidate fails=0 last_count=47
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/shabane/_ss.yaml # tags=auto status=candidate fails=0 last_count=99
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/roosterkid/openproxylist/V2RAY_BASE64.txt.yaml # tags=auto status=candidate fails=0 last_count=66
-https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/MatinGhanbari/v2ray-configs/subscriptions/v2ray/super-sub.txt.yaml # tags=auto status=candidate fails=0 last_count=120
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/_V2Hub3_trojan.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/ALIILAPRO/v2rayNG-Config/sub.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium/base64-encoder/ebrasha/_lite.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/vpnclashfa-backup/MirrorMan/Danialsamadi_v2go_custom.b64.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/vpnclashfa-backup/MirrorMan/Danialsamadi_v2go_custom.b64.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/MatinGhanbari/v2ray-configs/super-sub.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/mahdibland/ShadowsocksAggregator/Eternity.yml.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/vpnclashfa-backup/SubConfigShuffler/10ium/V2ray/Config/vmess/cloudflare.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/17.txt # tags=auto status=active fails=0 last_count=4
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/Surfboardv2ray/_ipv6.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/ndsphonemy/_my.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/MatinGhanbari/_v2ray-configs-super-sub.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/base64-encoder/NiREvil_SSTime.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/main/sub.txt # tags=auto status=active fails=0 last_count=6
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/base64-encoder/FreedomGuard/_Finder_configs.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/shabane/_merged.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/FreedomGuard_Finder_configs.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/mahdibland/ShadowsocksAggregator/EternityAir.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/roosterkid_V2RAY_BASE64.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/maimengmeng_custom.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/roosterkid/_V2RAY_RAW.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/MatinGhanbari/v2ray-configs/vmess.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/HiN-VPN/subscription/source/base64/ar14n24b.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/_hin-vpn-mix.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/encoded/10ium_mixed_iran.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/vpnclashfa-backup/MirrorMan/hamedp-71_Trojan_hp.b64.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium/base64-encoder/roosterkid/_V2RAY_RAW.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/roosterkid_V2RAY_RAW.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/shabane/_trojan.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/base64-encoder/miladtahanian_config.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/V2Hub3/shadowsocks.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/Surfboardv2ray/TGParse/mixed.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/itsyebekhe_mix.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/vpnclashfa-backup/SubConfigShuffler/MahsaNetConfigTopic.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/25.txt # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/HiN-VPN/subscription/hiddify/ss.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/MatinGhanbari/-super-sub.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/shabane/_ss.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/roosterkid/openproxylist/V2RAY_BASE64.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/MatinGhanbari/v2ray-configs/subscriptions/v2ray/super-sub.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/MatinGhanbari/-super-sub.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/vpnclashfa-backup/SubConfigShuffler/10ium_V2ray_Config_vmess_cloudflare.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/anaer.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/hfarahani_pr.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/Barabama_clashmeta.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/MahsaNetConfigTopic.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/trojanvmess.pages.dev/cmcm_b64.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/darkvpn.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium_hin-vpn-mix.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/itsyebekhe/PSG/lite/subscriptions/clash/mix.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/voken100g/_recent.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githack.com/aviamastersgh/vpn-free-russia/main/all_configs.txt # tags=auto status=active fails=0 last_count=52
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/4.txt # tags=auto status=active fails=0 last_count=2
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium/base64-encoder/miladtahanian_config.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/muma16fx_netlify_app.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/Ruk1ng001.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/NiREvil_SSTime.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/Rayan-Config_H-I.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium_V2Hub3_shadowsocks.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/16.txt # tags=auto status=candidate fails=1 last_count=0
