@@ -19,16 +19,20 @@ import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
-socket.setdefaulttimeout(6)
+socket.setdefaulttimeout(5)
 
-UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"}
+UA = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
+}
 
 SOURCES_FILE = "sources.txt"
 TG_POOL_FILE = "tg_discovered_pool.txt"
 HISTORY_FILE = "history.json"
 README_FILE = "README.md"
 
-# Выходные файлы (включая обратную совместимость со старыми list.txt и sub.txt)
 OUT_ALL = "all.txt"
 OUT_WL = "whitelist-mobile.txt"
 OUT_AI = "ai-claude-gemini.txt"
@@ -37,31 +41,28 @@ LEGACY_LIST = "list.txt"
 LEGACY_SUB = "sub.txt"
 
 MAX_FILE_BYTES = 5 * 1024 * 1024
-MAX_TOTAL = 1000
-FAST_LIMIT = 100
-MIN_TOTAL = 5
+MAX_CANDIDATES_FOR_SINGBOX = 300  # жесткий лимит, чтобы Actions не падал по таймауту
+MAX_MOBILE_OUT = 150              # топ-150 лучших серверов для быстрой проверки с телефона
+FAST_LIMIT = 50
+MIN_TOTAL = 3
 BATCH_SIZE = 50
-WORKERS = 35
+WORKERS = 40
 
-# Критерии авто-источников
-MIN_WORKING_FOR_ACTIVE = 3
+MIN_WORKING_FOR_ACTIVE = 2
 MAX_AUTO_FAILS = 3
 
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
 
-PROTOCOLS = ("vless://", "vmess://", "trojan://", "ss://", "hysteria2://", "hy2://", "tuic://")
-
-# Регионы, где Claude и Gemini заблокированы или требуют обхода
 AI_BLOCKED_COUNTRIES = {"RU", "BY", "CN", "HK", "MO", "IR", "KP", "SY", "CU"}
 
-# Домены из российских «белых списков» для эвристики SNI
+# Домены маскировки (SNI), которые пропускаются мобильными операторами РФ в режиме белых списков
 WHITELIST_SNI_DOMAINS = (
     "vk.com", "vk.ru", "userapi.com", "yandex.ru", "yandex.net", "ya.ru", "dzen.ru",
     "mail.ru", "imgsmail.ru", "ok.ru", "ozon.ru", "ozone.ru", "wb.ru", "wildberries.ru",
     "sberbank.ru", "sber.ru", "vtb.ru", "tbank.ru", "tinkoff.ru", "gosuslugi.ru",
     "rutube.ru", "kinopoisk.ru", "avito.ru", "2gis.ru", "kaspersky.com", "kaspersky.ru",
     "cdnvideo.ru", "selectel.ru", "timeweb.com", "beget.com", "mts.ru", "megafon.ru",
-    "yota.ru", "tele2.ru", "rostelecom.ru",
+    "yota.ru", "tele2.ru", "t2.ru", "rostelecom.ru", "pochta.ru", "rzd.ru", "mos.ru",
 )
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -167,12 +168,12 @@ def decode_base64_padded(text):
 
 
 def fetch_source_content(url):
-    text = safe_http_get(url, 25)
+    text = safe_http_get(url, 20)
     sample = text[:512].lstrip().lower()
     if sample.startswith("<!doctype html") or sample.startswith("<html"):
         raise ValueError("Получен HTML вместо списка")
 
-    if not any(p in text for p in PROTOCOLS) and not CIDR_RE.search(text[:200]):
+    if "vless://" not in text.lower() and not CIDR_RE.search(text[:200]):
         try:
             text = decode_base64_padded(text)
         except Exception:
@@ -184,7 +185,7 @@ def fetch_source_content(url):
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        if line.lower().startswith(PROTOCOLS):
+        if line.lower().startswith("vless://"):
             proxy_lines.append(line)
         elif CIDR_RE.match(line):
             try:
@@ -275,13 +276,11 @@ def load_history():
             data = json.load(f)
             return data if isinstance(data, dict) else {}
     except Exception:
-        print("WARN: history.json поврежден, создаем чистую историю")
         return {}
 
 
 def save_history(history):
     now = time.time()
-    # Храним историю максимум 14 дней, чтобы файл не разрастался
     cleaned = {
         k: v for k, v in history.items()
         if isinstance(v, dict) and now - v.get("seen", 0) < 14 * 86400
@@ -290,55 +289,11 @@ def save_history(history):
         json.dump(cleaned, f, indent=1)
 
 
-def parse_proxy(link):
+def parse_vless_mobile(link):
+    """Строгий парсер под мобильные сети РФ: только VLESS + Reality на порту 443."""
     link = link.strip()
-    low = link.lower()
-    if low.startswith("vless://"):
-        return parse_vless(link)
-    if low.startswith("vmess://"):
-        return parse_vmess(link)
-    if low.startswith("trojan://"):
-        return parse_trojan(link)
-    if low.startswith("ss://"):
-        return parse_ss(link)
-    if low.startswith(("hysteria2://", "hy2://")):
-        return parse_hysteria2(link)
-    if low.startswith("tuic://"):
-        return parse_tuic(link)
-    return None
-
-
-def build_tls_block(security, sni, fp, alpn=None, pbk=None, sid=None, insecure=False):
-    if security not in ("tls", "reality"):
+    if not link.lower().startswith("vless://"):
         return None
-    tls = {
-        "enabled": True,
-        "server_name": sni or "",
-        "insecure": bool(insecure),
-    }
-    if alpn:
-        tls["alpn"] = [a.strip() for a in alpn.split(",") if a.strip()]
-    if fp and fp in ALLOWED_FP:
-        tls["utls"] = {"enabled": True, "fingerprint": fp}
-    if security == "reality":
-        tls["reality"] = {"enabled": True, "public_key": pbk, "short_id": sid or ""}
-        if "utls" not in tls:
-            tls["utls"] = {"enabled": True, "fingerprint": "chrome"}
-    return tls
-
-
-def build_transport_block(net, params):
-    if net == "ws":
-        t = {"type": "ws", "path": params.get("path", "/")}
-        if params.get("host"):
-            t["headers"] = {"Host": params["host"]}
-        return t
-    if net == "grpc":
-        return {"type": "grpc", "service_name": params.get("serviceName", "")}
-    return None
-
-
-def parse_vless(link):
     try:
         u = urllib.parse.urlparse(link)
         params = {k: v[0] for k, v in urllib.parse.parse_qs(u.query, keep_blank_values=True).items()}
@@ -346,278 +301,68 @@ def parse_vless(link):
     except Exception:
         return None
 
-    if not UUID_RE.match(uuid) or not HOST_RE.match(host) or not port or not (1 <= port <= 65535):
+    # На улице через мобильного оператора выживает практически только порт 443
+    if port != 443:
+        return None
+    if not UUID_RE.match(uuid) or not HOST_RE.match(host):
         return None
     if params.get("encryption", "none") != "none":
         return None
 
     security = params.get("security", "")
-    if security not in ("reality", "tls"):
+    if security != "reality":
         return None
 
     net = params.get("type", "tcp")
-    if net not in ("tcp", "ws", "grpc"):
+    if net not in ("tcp", "grpc", "ws"):
         return None
 
     flow = params.get("flow", "")
-    if flow and (flow != "xtls-rprx-vision" or security != "reality" or net != "tcp"):
+    if flow and (flow != "xtls-rprx-vision" or net != "tcp"):
         return None
 
     fp = params.get("fp", "chrome")
-    if fp and fp not in ALLOWED_FP:
+    if not fp or fp not in ALLOWED_FP:
+        fp = "chrome"
+
+    pbk = params.get("pbk", "")
+    sid = params.get("sid", "")
+    if not PBK_RE.match(pbk) or not SID_RE.match(sid):
         return None
 
-    pbk, sid = params.get("pbk", ""), params.get("sid", "")
-    if security == "reality":
-        if not PBK_RE.match(pbk) or not SID_RE.match(sid):
-            return None
-
     sni = params.get("sni") or params.get("host") or host
+    if not HOST_RE.match(sni):
+        return None
+
     outbound = {
         "type": "vless",
         "server": host,
         "server_port": port,
         "uuid": uuid,
+        "tls": {
+            "enabled": True,
+            "server_name": sni,
+            "utls": {"enabled": True, "fingerprint": fp},
+            "reality": {"enabled": True, "public_key": pbk, "short_id": sid},
+        },
     }
     if flow:
         outbound["flow"] = flow
-    tls = build_tls_block(security, sni, fp, params.get("alpn"), pbk, sid)
-    if tls:
-        outbound["tls"] = tls
-    transport = build_transport_block(net, params)
-    if transport:
-        outbound["transport"] = transport
-
-    proto_tag = "VLESS-Reality" if security == "reality" else "VLESS-TLS"
-    return {
-        "key": f"vless:{uuid}@{host}:{port}",
-        "host": host,
-        "port": port,
-        "proto_tag": proto_tag,
-        "is_reality": security == "reality",
-        "is_udp": False,
-        "sni": sni,
-        "outbound": outbound,
-        "link": link,
-    }
-
-
-def parse_trojan(link):
-    try:
-        u = urllib.parse.urlparse(link)
-        params = {k: v[0] for k, v in urllib.parse.parse_qs(u.query, keep_blank_values=True).items()}
-        password = urllib.parse.unquote(u.username or "")
-        host, port = u.hostname or "", u.port
-    except Exception:
-        return None
-    if not password or not HOST_RE.match(host) or not port or not (1 <= port <= 65535):
-        return None
-
-    net = params.get("type", "tcp")
-    if net not in ("tcp", "ws", "grpc"):
-        return None
-    security = params.get("security", "tls")
-    if security not in ("tls", "reality"):
-        return None
-    sni = params.get("sni") or params.get("host") or host
-    fp = params.get("fp", "chrome")
-    pbk, sid = params.get("pbk", ""), params.get("sid", "")
-    if security == "reality" and (not PBK_RE.match(pbk) or not SID_RE.match(sid)):
-        return None
-
-    outbound = {
-        "type": "trojan",
-        "server": host,
-        "server_port": port,
-        "password": password,
-    }
-    tls = build_tls_block(security, sni, fp, params.get("alpn"), pbk, sid)
-    if tls:
-        outbound["tls"] = tls
-    transport = build_transport_block(net, params)
-    if transport:
-        outbound["transport"] = transport
+    if net == "ws":
+        t = {"type": "ws", "path": params.get("path", "/")}
+        if params.get("host"):
+            t["headers"] = {"Host": params["host"]}
+        outbound["transport"] = t
+    elif net == "grpc":
+        outbound["transport"] = {"type": "grpc", "service_name": params.get("serviceName", "")}
 
     return {
-        "key": f"trojan:{password[:16]}@{host}:{port}",
+        "key": f"{uuid}@{host}:{port}",
         "host": host,
         "port": port,
-        "proto_tag": "Trojan",
-        "is_reality": security == "reality",
-        "is_udp": False,
-        "sni": sni,
-        "outbound": outbound,
-        "link": link,
-    }
-
-
-def parse_vmess(link):
-    try:
-        b64 = link[len("vmess://"):].split("#", 1)[0]
-        raw = decode_base64_padded(b64)
-        data = json.loads(raw)
-        host = str(data.get("add", "")).strip()
-        port = int(data.get("port", 0))
-        uuid = str(data.get("id", "")).strip()
-        net = str(data.get("net", "tcp")).strip()
-        tls_flag = str(data.get("tls", "")).strip()
-        sni = str(data.get("sni") or data.get("host") or host).strip()
-    except Exception:
-        return None
-
-    if not UUID_RE.match(uuid) or not HOST_RE.match(host) or not (1 <= port <= 65535):
-        return None
-    if net not in ("tcp", "ws", "grpc"):
-        return None
-
-    outbound = {
-        "type": "vmess",
-        "server": host,
-        "server_port": port,
-        "uuid": uuid,
-        "security": str(data.get("scy", "auto")),
-        "alter_id": int(data.get("aid", 0) or 0),
-    }
-    if tls_flag == "tls":
-        outbound["tls"] = build_tls_block("tls", sni, str(data.get("fp", "chrome")))
-    transport = build_transport_block(net, {"path": data.get("path", "/"), "host": data.get("host", ""), "serviceName": data.get("path", "")})
-    if transport:
-        outbound["transport"] = transport
-
-    return {
-        "key": f"vmess:{uuid}@{host}:{port}",
-        "host": host,
-        "port": port,
-        "proto_tag": "VMess",
-        "is_reality": False,
-        "is_udp": False,
-        "sni": sni,
-        "outbound": outbound,
-        "link": link,
-    }
-
-
-def parse_ss(link):
-    try:
-        body = link[len("ss://"):].split("#", 1)[0].split("?", 1)[0]
-        if "@" in body:
-            userinfo, hostport = body.rsplit("@", 1)
-            if ":" not in userinfo:
-                userinfo = decode_base64_padded(userinfo)
-        else:
-            decoded = decode_base64_padded(body)
-            userinfo, hostport = decoded.rsplit("@", 1)
-        method, password = userinfo.split(":", 1)
-        method = urllib.parse.unquote(method)
-        password = urllib.parse.unquote(password)
-        host, port_str = hostport.rsplit(":", 1)
-        port = int(port_str)
-    except Exception:
-        return None
-
-    allowed_ciphers = {
-        "aes-128-gcm", "aes-256-gcm", "chacha20-ietf-poly1305",
-        "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305",
-    }
-    if method not in allowed_ciphers or not HOST_RE.match(host) or not (1 <= port <= 65535) or not password:
-        return None
-
-    outbound = {
-        "type": "shadowsocks",
-        "server": host,
-        "server_port": port,
-        "method": method,
-        "password": password,
-    }
-    return {
-        "key": f"ss:{method}:{password[:12]}@{host}:{port}",
-        "host": host,
-        "port": port,
-        "proto_tag": "Shadowsocks",
-        "is_reality": False,
-        "is_udp": False,
-        "sni": "",
-        "outbound": outbound,
-        "link": link,
-    }
-
-
-def parse_hysteria2(link):
-    norm = "hysteria2://" + link.split("://", 1)[1]
-    try:
-        u = urllib.parse.urlparse(norm)
-        params = {k: v[0] for k, v in urllib.parse.parse_qs(u.query, keep_blank_values=True).items()}
-        password = urllib.parse.unquote(u.username or "")
-        host, port = u.hostname or "", u.port
-    except Exception:
-        return None
-
-    if not password or not HOST_RE.match(host) or not port or not (1 <= port <= 65535):
-        return None
-    sni = params.get("sni") or host
-    insecure = params.get("insecure") in ("1", "true")
-
-    outbound = {
-        "type": "hysteria2",
-        "server": host,
-        "server_port": port,
-        "password": password,
-        "tls": {
-            "enabled": True,
-            "server_name": sni,
-            "insecure": insecure,
-        },
-    }
-    if params.get("obfs") == "salamander" and params.get("obfs-password"):
-        outbound["obfs"] = {"type": "salamander", "password": params["obfs-password"]}
-
-    return {
-        "key": f"hy2:{password[:16]}@{host}:{port}",
-        "host": host,
-        "port": port,
-        "proto_tag": "Hysteria2",
-        "is_reality": False,
-        "is_udp": True,
-        "sni": sni,
-        "outbound": outbound,
-        "link": link,
-    }
-
-
-def parse_tuic(link):
-    try:
-        u = urllib.parse.urlparse(link)
-        params = {k: v[0] for k, v in urllib.parse.parse_qs(u.query, keep_blank_values=True).items()}
-        uuid = urllib.parse.unquote(u.username or "")
-        password = urllib.parse.unquote(u.password or "")
-        host, port = u.hostname or "", u.port
-    except Exception:
-        return None
-
-    if not UUID_RE.match(uuid) or not HOST_RE.match(host) or not port or not (1 <= port <= 65535):
-        return None
-    sni = params.get("sni") or host
-
-    outbound = {
-        "type": "tuic",
-        "server": host,
-        "server_port": port,
-        "uuid": uuid,
-        "password": password,
-        "congestion_control": params.get("congestion_control", "bbr"),
-        "tls": {
-            "enabled": True,
-            "server_name": sni,
-            "alpn": ["h3"],
-        },
-    }
-    return {
-        "key": f"tuic:{uuid}@{host}:{port}",
-        "host": host,
-        "port": port,
-        "proto_tag": "TUIC",
-        "is_reality": False,
-        "is_udp": True,
+        "net": net,
+        "has_vision": flow == "xtls-rprx-vision",
+        "proto_tag": "Reality-Vision" if flow == "xtls-rprx-vision" else f"Reality-{net.upper()}",
         "sni": sni,
         "outbound": outbound,
         "link": link,
@@ -629,7 +374,452 @@ def prefilter_node(node):
     try:
         ip = socket.getaddrinfo(host, port, socket.AF_INET)[0][4][0]
     except Exception:
-        return "dns_fail", node, None, None
+        return "dns_fail", node
 
     code = country_of(ip) or "UN"
-    no
+    node["entry_ip"] = ip
+    node["entry_country"] = code
+
+    t0 = time.monotonic()
+    try:
+        with socket.create_connection((ip, port), timeout=2.2):
+            pass
+    except Exception:
+        return "tcp_dead", node
+
+    node["tcp_latency"] = time.monotonic() - t0
+    node["sni_whitelisted"] = is_whitelist_sni(node["sni"])
+    node["cidr_whitelisted"] = in_whitelist_cidr(ip)
+    node["is_ru_entry"] = (code == "RU")
+    node["is_whitelist"] = bool(
+        node["from_wl_source"]
+        or node["sni_whitelisted"]
+        or node["cidr_whitelisted"]
+        or node["is_ru_entry"]
+    )
+    return "prefilter_ok", node
+
+
+def build_singbox_config(batch_nodes, base_port=20000):
+    inbounds, outbounds, rules = [], [], []
+    for idx, node in enumerate(batch_nodes):
+        in_tag = f"in_{idx}"
+        out_tag = f"out_{idx}"
+        port = base_port + idx
+        node["_local_port"] = port
+
+        inbounds.append({
+            "type": "mixed",
+            "tag": in_tag,
+            "listen": "127.0.0.1",
+            "listen_port": port,
+        })
+        ob = dict(node["outbound"])
+        ob["tag"] = out_tag
+        outbounds.append(ob)
+        rules.append({"inbound": [in_tag], "outbound": out_tag})
+
+    outbounds.append({"type": "direct", "tag": "direct"})
+    return {
+        "log": {"level": "panic"},
+        "inbounds": inbounds,
+        "outbounds": outbounds,
+        "route": {"rules": rules, "final": "direct"},
+    }
+
+
+def check_singbox_config_valid(singbox_bin, batch_nodes):
+    if not batch_nodes:
+        return []
+    cfg = build_singbox_config(batch_nodes)
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+        json.dump(cfg, tmp)
+        tmp_path = tmp.name
+
+    try:
+        res = subprocess.run(
+            [singbox_bin, "check", "-c", tmp_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+        )
+        ok = (res.returncode == 0)
+    except Exception:
+        ok = False
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+    if ok:
+        return batch_nodes
+    if len(batch_nodes) == 1:
+        return []
+    mid = len(batch_nodes) // 2
+    return (
+        check_singbox_config_valid(singbox_bin, batch_nodes[:mid])
+        + check_singbox_config_valid(singbox_bin, batch_nodes[mid:])
+    )
+
+
+def proxy_get(local_port, url, timeout=4.5):
+    proxy_url = f"http://127.0.0.1:{local_port}"
+    handler = urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url})
+    opener = urllib.request.build_opener(handler)
+    req = urllib.request.Request(url, headers=UA)
+    with opener.open(req, timeout=timeout) as resp:
+        body = resp.read(32768).decode("utf-8", errors="ignore")
+        return resp.status, resp.geturl(), body
+
+
+def verify_tunnel_and_ai(node):
+    port = node["_local_port"]
+    t0 = time.monotonic()
+    try:
+        status, _, trace_body = proxy_get(port, "https://www.cloudflare.com/cdn-cgi/trace", timeout=4.5)
+        if status != 200 or "ip=" not in trace_body:
+            return "tunnel_fail", node
+    except Exception:
+        return "tunnel_fail", node
+
+    latency = time.monotonic() - t0
+    trace_map = {}
+    for line in trace_body.splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            trace_map[k.strip()] = v.strip()
+
+    exit_ip = trace_map.get("ip", "")
+    exit_country = trace_map.get("loc", "").upper() or country_of(exit_ip) or node["entry_country"]
+
+    node["latency"] = latency
+    node["exit_ip"] = exit_ip
+    node["exit_country"] = exit_country
+    node["ai_claude"] = False
+    node["ai_gemini"] = False
+
+    if exit_country not in AI_BLOCKED_COUNTRIES:
+        try:
+            st, final_url, body = proxy_get(port, "https://gemini.google.com/app", timeout=4.5)
+            low_body = body.lower()
+            if (
+                st == 200
+                and "/sorry/" not in final_url
+                and "not available in your country" not in low_body
+                and "isn't currently supported" not in low_body
+            ):
+                node["ai_gemini"] = True
+        except Exception:
+            pass
+
+        try:
+            st, final_url, body = proxy_get(port, "https://claude.ai/login", timeout=4.5)
+            low_body = body.lower()
+            if (
+                st == 200
+                and "unavailable" not in final_url.lower()
+                and "app-unavailable-in-region" not in low_body
+                and "just a moment..." not in low_body
+            ):
+                node["ai_claude"] = True
+        except Exception:
+            pass
+
+    return "tunnel_ok", node
+
+
+def write_sub_pair(filename, links):
+    text = "\n".join(links) + ("\n" if links else "")
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(text)
+    b64_name = filename.rsplit(".", 1)[0] + ".base64.txt"
+    b64_text = base64.b64encode(text.encode("utf-8")).decode("ascii") + "\n"
+    with open(b64_name, "w", encoding="utf-8") as f:
+        f.write(b64_text)
+
+
+def update_readme_stats(total, wl_count, ai_count, fast_count):
+    if not os.path.exists(README_FILE):
+        return
+    with open(README_FILE, encoding="utf-8") as f:
+        content = f.read()
+
+    now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    block = (
+        "<!-- STATUS_START -->\n"
+        f"- **Последнее обновление**: `{now_str}`\n"
+        f"- **Всего рабочих серверов (`all.txt`)**: `{total}`\n"
+        f"- **Под мобильные белые списки (`whitelist-mobile.txt` / `sub.txt`)**: `{wl_count}`\n"
+        f"- **Доступ к Claude + Gemini (`ai-claude-gemini.txt`)**: `{ai_count}`\n"
+        f"- **Быстрые серверы (`fast.txt`)**: `{fast_count}`\n"
+        "<!-- STATUS_END -->"
+    )
+    if "<!-- STATUS_START -->" in content and "<!-- STATUS_END -->" in content:
+        content = re.sub(
+            r"<!-- STATUS_START -->.*?<!-- STATUS_END -->",
+            block,
+            content,
+            flags=re.DOTALL,
+        )
+        with open(README_FILE, "w", encoding="utf-8") as f:
+            f.write(content)
+
+
+def main():
+    global geo_starts, geo_ends, geo_codes, wl_cidr_starts, wl_cidr_ends
+    geo_starts, geo_ends, geo_codes = load_geo()
+
+    history = load_history()
+    entries = read_sources()
+    unique = {}
+    cidr_networks = []
+    source_raw_keys = {}
+    stats = Counter()
+
+    for idx, entry in enumerate(entries):
+        url = entry["url"]
+        tags = entry["meta"]["tags"]
+        is_wl_source = (
+            "whitelist" in tags
+            or "priority" in tags
+            or any(k in url.lower() for k in ("igareck", "zieng2", "alley", "white"))
+        )
+        is_cidr_source = "cidr" in tags or "cidr" in url.lower()
+        source_raw_keys[idx] = set()
+
+        try:
+            proxy_lines, cidrs = fetch_source_content(url)
+            cidr_networks.extend(cidrs)
+            print(f"[{entry['section']:6s}] {len(proxy_lines):5d} VLESS, {len(cidrs):4d} CIDR | {url}")
+        except Exception as e:
+            print(f"[{entry['section']:6s}] ОШИБКА источника {url}: {e}")
+            entry["_fetch_failed"] = True
+            continue
+
+        entry["_fetch_failed"] = False
+        for link in proxy_lines:
+            parsed = parse_vless_mobile(link)
+            if not parsed:
+                stats["filtered_non_mobile"] += 1
+                continue
+            key = parsed["key"]
+            source_raw_keys[idx].add(key)
+
+            if is_cidr_source:
+                try:
+                    ip_obj = ipaddress.IPv4Address(parsed["host"])
+                    cidr_networks.append(ipaddress.IPv4Network(f"{ip_obj}/24", strict=False))
+                except ValueError:
+                    pass
+
+            if key in unique:
+                stats["duplicate"] += 1
+                if is_wl_source:
+                    unique[key]["from_wl_source"] = True
+                continue
+
+            parsed["from_wl_source"] = is_wl_source
+            prev_hist = history.get(key, {})
+            parsed["prev_streak"] = int(prev_hist.get("streak", 0)) if isinstance(prev_hist, dict) else 0
+            unique[key] = parsed
+
+    if os.path.exists(TG_POOL_FILE):
+        try:
+            with open(TG_POOL_FILE, encoding="utf-8") as f:
+                for line in f:
+                    parsed = parse_vless_mobile(line)
+                    if parsed and parsed["key"] not in unique:
+                        parsed["from_wl_source"] = False
+                        prev_hist = history.get(parsed["key"], {})
+                        parsed["prev_streak"] = int(prev_hist.get("streak", 0)) if isinstance(prev_hist, dict) else 0
+                        unique[parsed["key"]] = parsed
+        except Exception:
+            pass
+
+    wl_cidr_starts, wl_cidr_ends = rebuild_cidr_index(cidr_networks)
+    print(f"Индекс CIDR белых списков: {len(wl_cidr_starts)} подсетей")
+
+    # Шаг 1: Быстрый DNS + TCP фильтр
+    tcp_alive = []
+    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        for status, node in ex.map(prefilter_node, unique.values()):
+            stats[status] += 1
+            if status == "prefilter_ok":
+                tcp_alive.append(node)
+
+    # Приоритет кандидатов перед глубокой проверкой:
+    # 1. Белый список (SNI / CIDR / профильный источник)
+    # 2. Наличие xtls-rprx-vision
+    # 3. История стабильности (prev_streak)
+    # 4. Минимальный TCP-пинг
+    tcp_alive.sort(key=lambda n: (
+        0 if (n["sni_whitelisted"] or n["cidr_whitelisted"] or n["from_wl_source"]) else 1,
+        0 if n["has_vision"] else 1,
+        -min(n["prev_streak"], 10),
+        n["tcp_latency"],
+    ))
+
+    candidates = tcp_alive[:MAX_CANDIDATES_FOR_SINGBOX]
+    print(f"Отобрано лучших мобильных кандидатов: {len(candidates)} из {len(tcp_alive)} живых по TCP")
+
+    # Шаг 2: Реальная проверка туннеля через sing-box (с резервным режимом, если бинарника нет)
+    singbox_bin = shutil.which("sing-box")
+    verified = []
+
+    if singbox_bin:
+        for i in range(0, len(candidates), BATCH_SIZE):
+            raw_batch = candidates[i:i + BATCH_SIZE]
+            valid_batch = check_singbox_config_valid(singbox_bin, raw_batch)
+            stats["config_invalid"] += len(raw_batch) - len(valid_batch)
+            if not valid_batch:
+                continue
+
+            cfg = build_singbox_config(valid_batch, base_port=20000)
+            with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+                json.dump(cfg, tmp)
+                cfg_path = tmp.name
+
+            proc = subprocess.Popen(
+                [singbox_bin, "run", "-c", cfg_path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            try:
+                time.sleep(0.7)
+                with ThreadPoolExecutor(max_workers=min(WORKERS, len(valid_batch))) as ex:
+                    for st, checked_node in ex.map(verify_tunnel_and_ai, valid_batch):
+                        stats[st] += 1
+                        if st == "tunnel_ok":
+                            verified.append(checked_node)
+            finally:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                if os.path.exists(cfg_path):
+                    os.remove(cfg_path)
+    else:
+        print("WARN: sing-box не найден в PATH, используется резервный TCP-режим")
+        for n in candidates:
+            n["latency"] = n["tcp_latency"]
+            n["exit_ip"] = n["entry_ip"]
+            n["exit_country"] = n["entry_country"]
+            n["ai_claude"] = n["entry_country"] not in AI_BLOCKED_COUNTRIES
+            n["ai_gemini"] = n["entry_country"] not in AI_BLOCKED_COUNTRIES
+            verified.append(n)
+
+    # Шаг 3: Обновление статусов источников
+    alive_keys = {n["key"] for n in verified}
+    updated_entries = []
+    for idx, entry in enumerate(entries):
+        meta = entry["meta"]
+        working_from_src = len(source_raw_keys.get(idx, set()) & alive_keys)
+        meta["last_count"] = working_from_src
+
+        if entry.get("_fetch_failed") or working_from_src == 0:
+            meta["fails"] += 1
+            if entry["section"] == "MANUAL":
+                meta["status"] = "dead" if entry.get("_fetch_failed") else "active"
+                updated_entries.append(entry)
+            else:
+                if meta["fails"] < MAX_AUTO_FAILS:
+                    updated_entries.append(entry)
+        else:
+            meta["fails"] = 0
+            if entry["section"] == "MANUAL" or working_from_src >= MIN_WORKING_FOR_ACTIVE:
+                meta["status"] = "active"
+            updated_entries.append(entry)
+
+    if updated_entries:
+        write_sources(updated_entries)
+
+    # Шаг 4: Обновление history.json и финальное ранжирование под улицу/мобилки
+    now_ts = time.time()
+    for n in verified:
+        k = n["key"]
+        streak = n["prev_streak"] + 1
+        history[k] = {"streak": streak, "seen": now_ts}
+        n["streak"] = streak
+
+    save_history(history)
+
+    # Итоговая сортировка:
+    # 1. Маскировка под белый SNI (.ru, vk, yandex и т.д.) или белый CIDR
+    # 2. Из профильного мобильного источника (igareck / zieng2 / alley)
+    # 3. Протокол Reality-Vision
+    # 4. Стабильность (streak >= 2)
+    # 5. Задержка
+    verified.sort(key=lambda n: (
+        0 if (n["sni_whitelisted"] or n["cidr_whitelisted"]) else 1,
+        0 if n["from_wl_source"] else 1,
+        0 if n["has_vision"] else 1,
+        0 if n["streak"] >= 2 else 1,
+        n["latency"],
+    ))
+
+    for k, v in stats.most_common():
+        print(f"{k}: {v}")
+
+    if len(verified) < MIN_TOTAL:
+        sys.exit(f"FATAL: живых серверов всего {len(verified)}, файлы не перезаписаны")
+
+    all_links, wl_links, ai_links = [], [], []
+
+    for idx, n in enumerate(verified, 1):
+        base = n["link"].split("#", 1)[0]
+        code = n["exit_country"]
+        ms = int(n["latency"] * 1000)
+
+        tags = [f"{flag(code)} {code}", n["proto_tag"], f"{ms}ms"]
+        if n["sni_whitelisted"]:
+            tags.append(f"SNI:{n['sni']}")
+        elif n["is_whitelist"]:
+            tags.append("WL")
+        if n["ai_claude"]:
+            tags.append("Claude")
+        if n["ai_gemini"]:
+            tags.append("Gemini")
+        tags.append(f"#{idx:03d}")
+
+        label = urllib.parse.quote(" | ".join(tags))
+        formatted = f"{base}#{label}"
+
+        all_links.append(formatted)
+        if n["is_whitelist"] and len(wl_links) < MAX_MOBILE_OUT:
+            wl_links.append(formatted)
+        if n["ai_claude"] and n["ai_gemini"]:
+            ai_links.append(formatted)
+
+    # Если строгий фильтр белых списков дал мало узлов, добиваем лучшими Reality-443
+    if len(wl_links) < 20:
+        for link in all_links:
+            if link not in wl_links and len(wl_links) < MAX_MOBILE_OUT:
+                wl_links.append(link)
+
+    fast_nodes = sorted(verified, key=lambda x: x["latency"])[:FAST_LIMIT]
+    fast_links = []
+    for idx, n in enumerate(fast_nodes, 1):
+        base = n["link"].split("#", 1)[0]
+        code = n["exit_country"]
+        ms = int(n["latency"] * 1000)
+        label = urllib.parse.quote(f"{flag(code)} {code} | {n['proto_tag']} | {ms}ms | FAST #{idx:02d}")
+        fast_links.append(f"{base}#{label}")
+
+    write_sub_pair(OUT_ALL, all_links)
+    write_sub_pair(OUT_WL, wl_links)
+    write_sub_pair(OUT_AI, ai_links)
+    write_sub_pair(OUT_FAST, fast_links)
+
+    # Записываем мобильный белый список сразу в стандартные list.txt и sub.txt
+    shutil.copyfile(OUT_WL, LEGACY_LIST)
+    shutil.copyfile("whitelist-mobile.base64.txt", LEGACY_SUB)
+
+    update_readme_stats(len(all_links), len(wl_links), len(ai_links), len(fast_links))
+    print(
+        f"Готово: mobile_wl={len(wl_links)} (записано в {OUT_WL} и {LEGACY_SUB}), "
+        f"all={len(all_links)}, ai={len(ai_links)}, fast={len(fast_links)}"
+    )
+
+
+if __name__ == "__main__":
+    main()
