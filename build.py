@@ -40,9 +40,10 @@ OUT_FAST = "fast.txt"
 LEGACY_LIST = "list.txt"
 LEGACY_SUB = "sub.txt"
 
-MAX_FILE_BYTES = 5 * 1024 * 1024
-MAX_GEO_BYTES = 30 * 1024 * 1024  # 30 МБ для CSV-базы GeoIP
-MAX_CANDIDATES_FOR_SINGBOX = 300
+MAX_FILE_BYTES = 15 * 1024 * 1024
+MAX_GEO_BYTES = 35 * 1024 * 1024
+MAX_RU_CANDIDATES = 320           # резервируем основную квоту под российские входные IP
+MAX_FOREIGN_CANDIDATES = 80       # небольшая квота под ai-claude-gemini.txt
 MAX_MOBILE_OUT = 150
 FAST_LIMIT = 50
 MIN_TOTAL = 3
@@ -54,15 +55,24 @@ MAX_AUTO_FAILS = 3
 
 GEO_CSV_URL = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-country/geolite2-country-ipv4.csv"
 
+# Обязательные источники с проверенными российскими CIDR под мобильные белые списки
+MANDATORY_CIDR_SOURCES = [
+    "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt",
+    "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt",
+    "https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt",
+    "https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt",
+    "https://alley.serv00.net/whitelist",
+]
+
 AI_BLOCKED_COUNTRIES = {"RU", "BY", "CN", "HK", "MO", "IR", "KP", "SY", "CU"}
 
 WHITELIST_SNI_DOMAINS = (
-    "vk.com", "vk.ru", "userapi.com", "yandex.ru", "yandex.net", "ya.ru", "dzen.ru",
-    "mail.ru", "imgsmail.ru", "ok.ru", "ozon.ru", "ozone.ru", "wb.ru", "wildberries.ru",
-    "sberbank.ru", "sber.ru", "vtb.ru", "tbank.ru", "tinkoff.ru", "gosuslugi.ru",
-    "rutube.ru", "kinopoisk.ru", "avito.ru", "2gis.ru", "kaspersky.com", "kaspersky.ru",
-    "cdnvideo.ru", "selectel.ru", "timeweb.com", "beget.com", "mts.ru", "megafon.ru",
-    "yota.ru", "tele2.ru", "t2.ru", "rostelecom.ru", "pochta.ru", "rzd.ru", "mos.ru",
+    "vk.com", "vk.ru", "userapi.com", "okcdn.ru", "yandex.ru", "yandex.net", "ya.ru",
+    "dzen.ru", "mail.ru", "imgsmail.ru", "ok.ru", "ozon.ru", "ozone.ru", "wb.ru",
+    "wildberries.ru", "sberbank.ru", "sber.ru", "vtb.ru", "tbank.ru", "tinkoff.ru",
+    "gosuslugi.ru", "rutube.ru", "kinopoisk.ru", "avito.ru", "2gis.ru", "kaspersky.com",
+    "kaspersky.ru", "cdnvideo.ru", "selectel.ru", "timeweb.com", "beget.com", "mts.ru",
+    "megafon.ru", "yota.ru", "tele2.ru", "t2.ru", "rostelecom.ru", "pochta.ru", "rzd.ru",
 )
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -78,12 +88,12 @@ wl_cidr_starts, wl_cidr_ends = [], []
 
 def flag(code):
     if not code or len(code) != 2 or not code.isalpha():
-        return "UN"
+        return "🌐"
     code = code.upper()
     return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code)
 
 
-def safe_http_get(url, timeout=20, max_bytes=MAX_FILE_BYTES):
+def safe_http_get(url, timeout=25, max_bytes=MAX_FILE_BYTES):
     req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         data = r.read(max_bytes + 1)
@@ -168,7 +178,7 @@ def decode_base64_padded(text):
 
 
 def fetch_source_content(url):
-    text = safe_http_get(url, 20)
+    text = safe_http_get(url, 25)
     sample = text[:512].lstrip().lower()
     if sample.startswith("<!doctype html") or sample.startswith("<html"):
         raise ValueError("Получен HTML вместо списка")
@@ -218,29 +228,41 @@ def format_meta(meta):
 
 
 def read_sources():
-    if not os.path.exists(SOURCES_FILE):
-        return []
-    with open(SOURCES_FILE, encoding="utf-8") as f:
-        lines = f.read().splitlines()
-
     entries = []
-    section = "MANUAL"
-    for line in lines:
-        s = line.strip()
-        if s == "# MANUAL":
-            section = "MANUAL"
-            continue
-        if s == "# AUTO":
-            section = "AUTO"
-            continue
-        if not s or s.startswith("#"):
-            continue
-        url = s.split("#", 1)[0].strip()
-        meta_raw = s.split("#", 1)[1].strip() if "#" in s else ""
-        meta = parse_meta(meta_raw)
-        if not url.startswith(("http://", "https://")) or not url.isascii():
-            continue
-        entries.append({"section": section, "url": url, "meta": meta})
+    seen_urls = set()
+
+    if os.path.exists(SOURCES_FILE):
+        with open(SOURCES_FILE, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+
+        section = "MANUAL"
+        for line in lines:
+            s = line.strip()
+            if s == "# MANUAL":
+                section = "MANUAL"
+                continue
+            if s == "# AUTO":
+                section = "AUTO"
+                continue
+            if not s or s.startswith("#"):
+                continue
+            url = s.split("#", 1)[0].strip()
+            meta_raw = s.split("#", 1)[1].strip() if "#" in s else ""
+            meta = parse_meta(meta_raw)
+            if not url.startswith(("http://", "https://")) or not url.isascii():
+                continue
+            seen_urls.add(url)
+            entries.append({"section": section, "url": url, "meta": meta})
+
+    for m_url in MANDATORY_CIDR_SOURCES:
+        if m_url not in seen_urls:
+            entries.insert(0, {
+                "section": "MANUAL",
+                "url": m_url,
+                "meta": {"tags": {"manual", "whitelist", "priority", "cidr"}, "status": "active", "fails": 0, "last_count": 0},
+            })
+            seen_urls.add(m_url)
+
     return entries
 
 
@@ -289,7 +311,7 @@ def save_history(history):
         json.dump(cleaned, f, indent=1)
 
 
-def parse_vless_mobile(link):
+def parse_vless(link):
     link = link.strip()
     if not link.lower().startswith("vless://"):
         return None
@@ -300,71 +322,104 @@ def parse_vless_mobile(link):
     except Exception:
         return None
 
-    if port != 443:
+    if not port or not (1 <= port <= 65535):
         return None
     if not UUID_RE.match(uuid) or not HOST_RE.match(host):
         return None
     if params.get("encryption", "none") != "none":
         return None
 
-    security = params.get("security", "")
-    if security != "reality":
+    security = params.get("security", "none")
+    if security not in ("reality", "tls", "none"):
         return None
 
     net = params.get("type", "tcp")
-    if net not in ("tcp", "grpc", "ws"):
+    if net not in ("tcp", "ws", "grpc"):
         return None
 
     flow = params.get("flow", "")
-    if flow and (flow != "xtls-rprx-vision" or net != "tcp"):
-        return None
+    if flow and (flow != "xtls-rprx-vision" or net != "tcp" or security not in ("reality", "tls")):
+        flow = ""
 
     fp = params.get("fp", "chrome")
     if not fp or fp not in ALLOWED_FP:
         fp = "chrome"
 
-    pbk = params.get("pbk", "")
-    sid = params.get("sid", "")
-    if not PBK_RE.match(pbk) or not SID_RE.match(sid):
-        return None
-
     sni = params.get("sni") or params.get("host") or host
     if not HOST_RE.match(sni):
-        return None
+        sni = host
 
     outbound = {
         "type": "vless",
         "server": host,
         "server_port": port,
         "uuid": uuid,
-        "tls": {
+    }
+    if flow:
+        outbound["flow"] = flow
+
+    if security == "reality":
+        pbk = params.get("pbk", "")
+        sid = params.get("sid", "")
+        if not PBK_RE.match(pbk) or not SID_RE.match(sid):
+            return None
+        outbound["tls"] = {
             "enabled": True,
             "server_name": sni,
             "utls": {"enabled": True, "fingerprint": fp},
             "reality": {"enabled": True, "public_key": pbk, "short_id": sid},
-        },
-    }
-    if flow:
-        outbound["flow"] = flow
+        }
+        proto_tag = "Reality-Vision" if flow else f"Reality-{net.upper()}"
+    elif security == "tls":
+        outbound["tls"] = {
+            "enabled": True,
+            "server_name": sni,
+            "insecure": True,
+            "utls": {"enabled": True, "fingerprint": fp},
+        }
+        proto_tag = f"TLS-{net.upper()}"
+    else:
+        proto_tag = f"VLESS-{net.upper()}"
+
     if net == "ws":
         t = {"type": "ws", "path": params.get("path", "/")}
-        if params.get("host"):
-            t["headers"] = {"Host": params["host"]}
+        ws_host = params.get("host") or sni
+        if ws_host:
+            t["headers"] = {"Host": ws_host}
         outbound["transport"] = t
     elif net == "grpc":
         outbound["transport"] = {"type": "grpc", "service_name": params.get("serviceName", "")}
 
     return {
         "key": f"{uuid}@{host}:{port}",
+        "uuid": uuid,
         "host": host,
         "port": port,
         "net": net,
-        "has_vision": flow == "xtls-rprx-vision",
-        "proto_tag": "Reality-Vision" if flow == "xtls-rprx-vision" else f"Reality-{net.upper()}",
+        "security": security,
+        "is_reality": security == "reality",
+        "has_vision": bool(flow),
+        "proto_tag": proto_tag,
         "sni": sni,
+        "params": params,
         "outbound": outbound,
         "link": link,
     }
+
+
+def rewrite_link_with_ip(node, ip):
+    """Заменяет домен на прямой IPv4 в ссылке, чтобы v2rayNG не зависел от заблокированного DNS."""
+    if node["host"] == ip:
+        return node["link"].split("#", 1)[0]
+    u = urllib.parse.urlparse(node["link"])
+    q_list = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
+    q_dict = dict(q_list)
+    if node["security"] in ("reality", "tls") and not q_dict.get("sni"):
+        q_list.append(("sni", node["host"]))
+    if node["net"] == "ws" and not q_dict.get("host"):
+        q_list.append(("host", node["host"]))
+    new_query = urllib.parse.urlencode(q_list, safe=":/,@")
+    return f"vless://{node['uuid']}@{ip}:{node['port']}?{new_query}"
 
 
 def prefilter_node(node):
@@ -377,6 +432,7 @@ def prefilter_node(node):
     code = country_of(ip) or "UN"
     node["entry_ip"] = ip
     node["entry_country"] = code
+    node["outbound"]["server"] = ip
 
     t0 = time.monotonic()
     try:
@@ -388,13 +444,7 @@ def prefilter_node(node):
     node["tcp_latency"] = time.monotonic() - t0
     node["sni_whitelisted"] = is_whitelist_sni(node["sni"])
     node["cidr_whitelisted"] = in_whitelist_cidr(ip)
-    node["is_ru_entry"] = (code == "RU")
-    node["is_whitelist"] = bool(
-        node["from_wl_source"]
-        or node["sni_whitelisted"]
-        or node["cidr_whitelisted"]
-        or node["is_ru_entry"]
-    )
+    node["is_ru_entry"] = (code == "RU") or node["from_checked_cidr"]
     return "prefilter_ok", node
 
 
@@ -459,7 +509,7 @@ def check_singbox_config_valid(singbox_bin, batch_nodes):
     )
 
 
-def proxy_get(local_port, url, timeout=4.5):
+def proxy_get(local_port, url, timeout=5.0):
     proxy_url = f"http://127.0.0.1:{local_port}"
     handler = urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url})
     opener = urllib.request.build_opener(handler)
@@ -472,12 +522,19 @@ def proxy_get(local_port, url, timeout=4.5):
 def verify_tunnel_and_ai(node):
     port = node["_local_port"]
     t0 = time.monotonic()
+    trace_body = ""
     try:
-        status, _, trace_body = proxy_get(port, "https://www.cloudflare.com/cdn-cgi/trace", timeout=4.5)
+        status, _, trace_body = proxy_get(port, "https://www.cloudflare.com/cdn-cgi/trace", timeout=5.0)
         if status != 200 or "ip=" not in trace_body:
-            return "tunnel_fail", node
+            raise ValueError("Cloudflare trace invalid")
     except Exception:
-        return "tunnel_fail", node
+        # Резервная проверка через Яндекс для чисто российских нод, где Cloudflare может резаться
+        try:
+            status, _, _ = proxy_get(port, "https://ya.ru", timeout=4.5)
+            if status != 200:
+                return "tunnel_fail", node
+        except Exception:
+            return "tunnel_fail", node
 
     latency = time.monotonic() - t0
     trace_map = {}
@@ -486,7 +543,7 @@ def verify_tunnel_and_ai(node):
             k, v = line.split("=", 1)
             trace_map[k.strip()] = v.strip()
 
-    exit_ip = trace_map.get("ip", "")
+    exit_ip = trace_map.get("ip", "") or node["entry_ip"]
     exit_country = trace_map.get("loc", "").upper() or country_of(exit_ip) or node["entry_country"]
 
     node["latency"] = latency
@@ -546,7 +603,7 @@ def update_readme_stats(total, wl_count, ai_count, fast_count):
         "<!-- STATUS_START -->\n"
         f"- **Последнее обновление**: `{now_str}`\n"
         f"- **Всего рабочих серверов (`all.txt`)**: `{total}`\n"
-        f"- **Под мобильные белые списки (`whitelist-mobile.txt` / `sub.txt`)**: `{wl_count}`\n"
+        f"- **Мобильные белые списки РФ (`whitelist-mobile.txt` / `sub.txt`)**: `{wl_count}`\n"
         f"- **Доступ к Claude + Gemini (`ai-claude-gemini.txt`)**: `{ai_count}`\n"
         f"- **Быстрые серверы (`fast.txt`)**: `{fast_count}`\n"
         "<!-- STATUS_END -->"
@@ -575,13 +632,15 @@ def main():
 
     for idx, entry in enumerate(entries):
         url = entry["url"]
+        low_url = url.lower()
         tags = entry["meta"]["tags"]
         is_wl_source = (
             "whitelist" in tags
             or "priority" in tags
-            or any(k in url.lower() for k in ("igareck", "zieng2", "alley", "white"))
+            or any(k in low_url for k in ("igareck", "zieng2", "alley", "white"))
         )
-        is_cidr_source = "cidr" in tags or "cidr" in url.lower()
+        is_checked_cidr = "white-cidr-ru-checked" in low_url or "vless-reality-white-lists-rus-mobile" in low_url
+        is_cidr_source = "cidr" in tags or "cidr" in low_url or is_checked_cidr
         source_raw_keys[idx] = set()
 
         try:
@@ -595,9 +654,9 @@ def main():
 
         entry["_fetch_failed"] = False
         for link in proxy_lines:
-            parsed = parse_vless_mobile(link)
+            parsed = parse_vless(link)
             if not parsed:
-                stats["filtered_non_mobile"] += 1
+                stats["bad_format"] += 1
                 continue
             key = parsed["key"]
             source_raw_keys[idx].add(key)
@@ -613,9 +672,12 @@ def main():
                 stats["duplicate"] += 1
                 if is_wl_source:
                     unique[key]["from_wl_source"] = True
+                if is_checked_cidr:
+                    unique[key]["from_checked_cidr"] = True
                 continue
 
             parsed["from_wl_source"] = is_wl_source
+            parsed["from_checked_cidr"] = is_checked_cidr
             prev_hist = history.get(key, {})
             parsed["prev_streak"] = int(prev_hist.get("streak", 0)) if isinstance(prev_hist, dict) else 0
             unique[key] = parsed
@@ -624,9 +686,10 @@ def main():
         try:
             with open(TG_POOL_FILE, encoding="utf-8") as f:
                 for line in f:
-                    parsed = parse_vless_mobile(line)
+                    parsed = parse_vless(line)
                     if parsed and parsed["key"] not in unique:
                         parsed["from_wl_source"] = False
+                        parsed["from_checked_cidr"] = False
                         prev_hist = history.get(parsed["key"], {})
                         parsed["prev_streak"] = int(prev_hist.get("streak", 0)) if isinstance(prev_hist, dict) else 0
                         unique[parsed["key"]] = parsed
@@ -636,6 +699,7 @@ def main():
     wl_cidr_starts, wl_cidr_ends = rebuild_cidr_index(cidr_networks)
     print(f"Индекс CIDR белых списков: {len(wl_cidr_starts)} подсетей")
 
+    # Шаг 1: Быстрый DNS + TCP фильтр
     tcp_alive = []
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
         for status, node in ex.map(prefilter_node, unique.values()):
@@ -643,16 +707,43 @@ def main():
             if status == "prefilter_ok":
                 tcp_alive.append(node)
 
-    tcp_alive.sort(key=lambda n: (
-        0 if (n["sni_whitelisted"] or n["cidr_whitelisted"] or n["from_wl_source"]) else 1,
-        0 if n["has_vision"] else 1,
+    # Убираем дубли по (entry_ip, port), чтобы один и тот же сервер не занимал 20 строк
+    dedup_ip_port = {}
+    for n in tcp_alive:
+        ep_key = (n["entry_ip"], n["port"])
+        old = dedup_ip_port.get(ep_key)
+        if not old or (n["from_checked_cidr"] and not old["from_checked_cidr"]) or n["tcp_latency"] < old["tcp_latency"]:
+            dedup_ip_port[ep_key] = n
+
+    unique_tcp_alive = list(dedup_ip_port.values())
+
+    # Разделяем пул: отдельно серверы с российским входом (для мобильных БС) и зарубежные
+    ru_entry_pool = [n for n in unique_tcp_alive if n["is_ru_entry"] or n["cidr_whitelisted"]]
+    fo_entry_pool = [n for n in unique_tcp_alive if not (n["is_ru_entry"] or n["cidr_whitelisted"])]
+
+    ru_entry_pool.sort(key=lambda n: (
+        0 if n["from_checked_cidr"] else 1,
+        0 if n["from_wl_source"] else 1,
+        0 if n["is_reality"] else 1,
+        0 if n["port"] == 443 else 1,
         -min(n["prev_streak"], 10),
         n["tcp_latency"],
     ))
 
-    candidates = tcp_alive[:MAX_CANDIDATES_FOR_SINGBOX]
-    print(f"Отобрано лучших мобильных кандидатов: {len(candidates)} из {len(tcp_alive)} живых по TCP")
+    fo_entry_pool.sort(key=lambda n: (
+        0 if (n["is_reality"] and n["port"] == 443) else 1,
+        -min(n["prev_streak"], 10),
+        n["tcp_latency"],
+    ))
 
+    candidates = ru_entry_pool[:MAX_RU_CANDIDATES] + fo_entry_pool[:MAX_FOREIGN_CANDIDATES]
+    print(
+        f"Кандидаты для sing-box: всего {len(candidates)} "
+        f"(RU/CIDR вход: {len(ru_entry_pool[:MAX_RU_CANDIDATES])}, "
+        f"Зарубежный вход: {len(fo_entry_pool[:MAX_FOREIGN_CANDIDATES])})"
+    )
+
+    # Шаг 2: Реальная проверка туннеля через sing-box
     singbox_bin = shutil.which("sing-box")
     verified = []
 
@@ -675,7 +766,7 @@ def main():
                 stderr=subprocess.DEVNULL,
             )
             try:
-                time.sleep(0.7)
+                time.sleep(0.8)
                 with ThreadPoolExecutor(max_workers=min(WORKERS, len(valid_batch))) as ex:
                     for st, checked_node in ex.map(verify_tunnel_and_ai, valid_batch):
                         stats[st] += 1
@@ -690,15 +781,15 @@ def main():
                 if os.path.exists(cfg_path):
                     os.remove(cfg_path)
     else:
-        print("WARN: sing-box не найден в PATH, используется резервный TCP-режим")
         for n in candidates:
             n["latency"] = n["tcp_latency"]
             n["exit_ip"] = n["entry_ip"]
             n["exit_country"] = n["entry_country"]
-            n["ai_claude"] = n["entry_country"] not in AI_BLOCKED_COUNTRIES
-            n["ai_gemini"] = n["entry_country"] not in AI_BLOCKED_COUNTRIES
+            n["ai_claude"] = False
+            n["ai_gemini"] = False
             verified.append(n)
 
+    # Шаг 3: Обновление статусов источников
     alive_keys = {n["key"] for n in verified}
     updated_entries = []
     for idx, entry in enumerate(entries):
@@ -723,20 +814,29 @@ def main():
     if updated_entries:
         write_sources(updated_entries)
 
+    # Шаг 4: Обновление истории и формирование списков
     now_ts = time.time()
     for n in verified:
         k = n["key"]
         streak = n["prev_streak"] + 1
         history[k] = {"streak": streak, "seen": now_ts}
         n["streak"] = streak
+        n["is_cascade"] = (n["is_ru_entry"] or n["cidr_whitelisted"]) and n["exit_country"] != "RU"
 
     save_history(history)
 
+    # Сортировка специально под мобильные сети РФ в режиме белых списков:
+    # 1. Входной IP в РФ / белом CIDR (единственное, что не дропается оператором на улице)
+    # 2. Из проверенного списка WHITE-CIDR-RU-checked / Rus-Mobile
+    # 3. Каскад (Вход в РФ -> Выход за рубеж)
+    # 4. Reality + порт 443
+    # 5. Задержка
     verified.sort(key=lambda n: (
-        0 if (n["sni_whitelisted"] or n["cidr_whitelisted"]) else 1,
-        0 if n["from_wl_source"] else 1,
-        0 if n["has_vision"] else 1,
-        0 if n["streak"] >= 2 else 1,
+        0 if (n["is_ru_entry"] or n["cidr_whitelisted"]) else 1,
+        0 if n["from_checked_cidr"] else 1,
+        0 if n["is_cascade"] else 1,
+        0 if n["is_reality"] else 1,
+        0 if n["port"] == 443 else 1,
         n["latency"],
     ))
 
@@ -749,42 +849,47 @@ def main():
     all_links, wl_links, ai_links = [], [], []
 
     for idx, n in enumerate(verified, 1):
-        base = n["link"].split("#", 1)[0]
-        code = n["exit_country"]
+        base = rewrite_link_with_ip(n, n["entry_ip"])
+        in_c = n["entry_country"]
+        out_c = n["exit_country"]
         ms = int(n["latency"] * 1000)
 
-        tags = [f"{flag(code)} {code}", n["proto_tag"], f"{ms}ms"]
-        if n["sni_whitelisted"]:
-            tags.append(f"SNI:{n['sni']}")
-        elif n["is_whitelist"]:
-            tags.append("WL")
-        if n["ai_claude"]:
-            tags.append("Claude")
-        if n["ai_gemini"]:
-            tags.append("Gemini")
+        if in_c != out_c:
+            route_tag = f"{flag(in_c)}{in_c}→{flag(out_c)}{out_c}"
+        else:
+            route_tag = f"{flag(in_c)}{in_c}"
+
+        tags = [route_tag, n["proto_tag"], f"{ms}ms"]
+        if n["from_checked_cidr"] or n["cidr_whitelisted"]:
+            tags.append("CIDR-WL")
+        elif n["is_ru_entry"]:
+            tags.append("RU-IN")
+        if n["sni"]:
+            tags.append(f"SNI:{n['sni'][:22]}")
+        if n["ai_claude"] and n["ai_gemini"]:
+            tags.append("AI")
         tags.append(f"#{idx:03d}")
 
         label = urllib.parse.quote(" | ".join(tags))
         formatted = f"{base}#{label}"
 
         all_links.append(formatted)
-        if n["is_whitelist"] and len(wl_links) < MAX_MOBILE_OUT:
+
+        # В мобильную подписку попадают ТОЛЬКО серверы с российским/CIDR входом
+        if (n["is_ru_entry"] or n["cidr_whitelisted"]) and len(wl_links) < MAX_MOBILE_OUT:
             wl_links.append(formatted)
+
         if n["ai_claude"] and n["ai_gemini"]:
             ai_links.append(formatted)
-
-    if len(wl_links) < 20:
-        for link in all_links:
-            if link not in wl_links and len(wl_links) < MAX_MOBILE_OUT:
-                wl_links.append(link)
 
     fast_nodes = sorted(verified, key=lambda x: x["latency"])[:FAST_LIMIT]
     fast_links = []
     for idx, n in enumerate(fast_nodes, 1):
-        base = n["link"].split("#", 1)[0]
-        code = n["exit_country"]
+        base = rewrite_link_with_ip(n, n["entry_ip"])
+        in_c = n["entry_country"]
+        out_c = n["exit_country"]
         ms = int(n["latency"] * 1000)
-        label = urllib.parse.quote(f"{flag(code)} {code} | {n['proto_tag']} | {ms}ms | FAST #{idx:02d}")
+        label = urllib.parse.quote(f"{flag(in_c)}{in_c}→{flag(out_c)}{out_c} | {n['proto_tag']} | {ms}ms | FAST #{idx:02d}")
         fast_links.append(f"{base}#{label}")
 
     write_sub_pair(OUT_ALL, all_links)
@@ -797,7 +902,7 @@ def main():
 
     update_readme_stats(len(all_links), len(wl_links), len(ai_links), len(fast_links))
     print(
-        f"Готово: mobile_wl={len(wl_links)} (записано в {OUT_WL} и {LEGACY_SUB}), "
+        f"Готово: mobile_ru_cidr={len(wl_links)} (записано в {OUT_WL} и {LEGACY_SUB}), "
         f"all={len(all_links)}, ai={len(ai_links)}, fast={len(fast_links)}"
     )
 
