@@ -2,31 +2,31 @@
 # БЛОК РУЧНЫХ ИСТОЧНИКОВ (discover.py никогда не удаляет строки из этого блока)
 # ==============================================================================
 # MANUAL
-https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt # tags=cidr,manual,priority,whitelist status=active fails=5 last_count=0
-https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt # tags=manual,priority,whitelist status=dead fails=11 last_count=0
+https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt # tags=cidr,manual,priority,whitelist status=active fails=6 last_count=0
+https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt # tags=manual,priority,whitelist status=dead fails=12 last_count=0
 https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt # tags=cidr,manual,priority,whitelist status=active fails=0 last_count=1
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt # tags=manual,priority,whitelist status=active fails=4 last_count=0
+https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt # tags=manual,priority,whitelist status=active fails=0 last_count=1
 https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt # tags=manual,priority,whitelist status=active fails=0 last_count=1
 https://alley.serv00.net/whitelist # tags=manual,priority,whitelist status=active fails=0 last_count=5
-https://alley.serv00.net/youtube # tags=manual,priority,whitelist status=active fails=0 last_count=45
-https://alley.serv00.net/other # tags=manual,priority,whitelist status=active fails=0 last_count=51
-https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt # tags=general,manual status=active fails=0 last_count=1
-https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt # tags=general,manual status=active fails=0 last_count=64
-https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt # tags=general,manual status=active fails=11 last_count=0
-https://nyrokume.github.io/vless-hub/sub/protocol/vless.txt # tags=general,manual status=active fails=0 last_count=12
-https://raw.githubusercontent.com/ShatakVPN/ConfigForge-V2Ray/main/configs/vless.txt # tags=general,manual status=active fails=0 last_count=3
+https://alley.serv00.net/youtube # tags=manual,priority,whitelist status=active fails=0 last_count=42
+https://alley.serv00.net/other # tags=manual,priority,whitelist status=active fails=0 last_count=53
+https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt # tags=general,manual status=active fails=1 last_count=0
+https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt # tags=general,manual status=active fails=0 last_count=62
+https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt # tags=general,manual status=active fails=12 last_count=0
+https://nyrokume.github.io/vless-hub/sub/protocol/vless.txt # tags=general,manual status=active fails=0 last_count=7
+https://raw.githubusercontent.com/ShatakVPN/ConfigForge-V2Ray/main/configs/vless.txt # tags=general,manual status=active fails=0 last_count=2
 
 # ==============================================================================
 # БЛОК АВТОМАТИЧЕСКИХ ИСТОЧНИКОВ (управляется discover.py и build.py)
 # ==============================================================================
 # AUTO
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/17.txt # tags=auto status=active fails=0 last_count=4
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/17.txt # tags=auto status=active fails=0 last_count=3
 https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/main/sub.txt # tags=auto status=active fails=0 last_count=4
-https://raw.githack.com/aviamastersgh/vpn-free-russia/main/all_configs.txt # tags=auto status=active fails=0 last_count=47
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/4.txt # tags=auto status=active fails=0 last_count=23
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/10.txt # tags=auto status=active fails=0 last_count=72
+https://raw.githack.com/aviamastersgh/vpn-free-russia/main/all_configs.txt # tags=auto status=active fails=0 last_count=51
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/4.txt # tags=auto status=active fails=0 last_count=21
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/10.txt # tags=auto status=active fails=0 last_count=68
 https://raw.githubusercontent.com/Ashollii/SubHarvest/main/output/sub.b64.txt # tags=auto status=active fails=0 last_count=4
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/23.txt # tags=auto status=active fails=1 last_count=0
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/14.txt # tags=auto status=active fails=0 last_count=24
-https://raw.githubusercontent.com/alicyberrr/NoizVpn-Sub/main/output/plain.txt # tags=auto status=active fails=0 last_count=11
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/6.txt # tags=auto status=active fails=0 last_count=10
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/23.txt # tags=auto status=active fails=2 last_count=0
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/14.txt # tags=auto status=active fails=0 last_count=21
+https://raw.githubusercontent.com/alicyberrr/NoizVpn-Sub/main/output/plain.txt # tags=auto status=active fails=0 last_count=12
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/6.txt # tags=auto status=active fails=0 last_count=7
