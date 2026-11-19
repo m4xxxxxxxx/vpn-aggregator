@@ -2,34 +2,54 @@
 # БЛОК РУЧНЫХ ИСТОЧНИКОВ (discover.py никогда не удаляет строки из этого блока)
 # ==============================================================================
 # MANUAL
-https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt # tags=cidr,manual,priority,whitelist status=active fails=2 last_count=0
-https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt # tags=manual,priority,whitelist status=active fails=0 last_count=1
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt # tags=cidr,manual,priority,whitelist status=active fails=0 last_count=1
-https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt # tags=manual,priority,whitelist status=active fails=0 last_count=2
-https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt # tags=manual,priority,whitelist status=active fails=0 last_count=1
+https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt # tags=cidr,manual,priority,whitelist status=active fails=3 last_count=0
+https://gitverse.ru/api/repos/zieng2/wl/raw/branch/master/list_universal.txt # tags=manual,priority,whitelist status=active fails=1 last_count=0
+https://raw.githack.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt # tags=cidr,manual,priority,whitelist status=active fails=0 last_count=2
+https://raw.githack.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt # tags=manual,priority,whitelist status=active fails=0 last_count=1
+https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt # tags=manual,priority,whitelist status=active fails=0 last_count=2
 https://alley.serv00.net/whitelist # tags=manual,priority,whitelist status=active fails=0 last_count=3
-https://alley.serv00.net/youtube # tags=manual,priority,whitelist status=active fails=0 last_count=45
-https://alley.serv00.net/other # tags=manual,priority,whitelist status=active fails=0 last_count=50
+https://alley.serv00.net/youtube # tags=manual,priority,whitelist status=active fails=0 last_count=40
+https://alley.serv00.net/other # tags=manual,priority,whitelist status=active fails=0 last_count=47
 https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt # tags=general,manual status=active fails=0 last_count=1
-https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt # tags=general,manual status=active fails=0 last_count=63
-https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt # tags=general,manual status=active fails=29 last_count=0
-https://nyrokume.github.io/vless-hub/sub/protocol/vless.txt # tags=general,manual status=active fails=0 last_count=7
+https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt # tags=general,manual status=active fails=0 last_count=52
+https://raw.githubusercontent.com/CaptchaQ/vless-servers/main/working_lite.txt # tags=general,manual status=active fails=30 last_count=0
+https://nyrokume.github.io/vless-hub/sub/protocol/vless.txt # tags=general,manual status=active fails=0 last_count=8
 https://raw.githubusercontent.com/ShatakVPN/ConfigForge-V2Ray/main/configs/vless.txt # tags=general,manual status=active fails=0 last_count=2
 
 # ==============================================================================
 # БЛОК АВТОМАТИЧЕСКИХ ИСТОЧНИКОВ (управляется discover.py и build.py)
 # ==============================================================================
 # AUTO
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/17.txt # tags=auto status=active fails=0 last_count=6
-https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/main/sub.txt # tags=auto status=active fails=0 last_count=5
-https://raw.githack.com/aviamastersgh/vpn-free-russia/main/all_configs.txt # tags=auto status=active fails=0 last_count=51
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/4.txt # tags=auto status=active fails=0 last_count=15
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/10.txt # tags=auto status=active fails=0 last_count=72
-https://raw.githubusercontent.com/Ashollii/SubHarvest/main/output/sub.b64.txt # tags=auto status=active fails=0 last_count=2
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/14.txt # tags=auto status=active fails=0 last_count=27
-https://raw.githubusercontent.com/alicyberrr/NoizVpn-Sub/main/output/plain.txt # tags=auto status=active fails=0 last_count=7
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/6.txt # tags=auto status=active fails=0 last_count=9
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/15.txt # tags=auto status=active fails=0 last_count=8
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/17.txt # tags=auto status=active fails=0 last_count=5
+https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/main/sub.txt # tags=auto status=active fails=0 last_count=4
+https://raw.githack.com/aviamastersgh/vpn-free-russia/main/all_configs.txt # tags=auto status=active fails=0 last_count=45
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/4.txt # tags=auto status=active fails=0 last_count=16
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/10.txt # tags=auto status=active fails=0 last_count=62
+https://raw.githubusercontent.com/Ashollii/SubHarvest/main/output/sub.b64.txt # tags=auto status=active fails=0 last_count=1
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/14.txt # tags=auto status=active fails=0 last_count=23
+https://raw.githubusercontent.com/alicyberrr/NoizVpn-Sub/main/output/plain.txt # tags=auto status=active fails=0 last_count=6
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/6.txt # tags=auto status=active fails=0 last_count=1
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/15.txt # tags=auto status=active fails=0 last_count=7
 https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/5.txt # tags=auto status=active fails=0 last_count=6
 https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/13.txt # tags=auto status=candidate fails=0 last_count=1
-https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/9.txt # tags=auto status=active fails=0 last_count=3
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/9.txt # tags=auto status=active fails=0 last_count=2
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/10ium_ss_iran.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/20.txt # tags=auto status=active fails=0 last_count=34
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/MatinGhanbari/v2ray-configs/subscriptions/v2ray/super-sub.txt.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/proxy_kafee.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/main/sub_base64.txt # tags=auto status=active fails=0 last_count=4
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/vpnclashfa-backup/MirrorMan/hamedp-71_Sub_Checker_Creator_final.b64.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/anaer.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/miladtahanian_config.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/vpnclashfa-backup/MirrorMan/v2nodes.b64.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/HiN-VPN/subscription/source/base64/v2ray1_ng.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/hfarahani_pr.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium_V2RayAggregator-Eternity.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/Surfboardv2ray/_bugfix.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/roosterkid_V2RAY_RAW.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/_V2Hub3_shadowsocks.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium_V2Hub3_vmess.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/lagzian_vmess.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium/base64-encoder/wudongdefeng_list_raw.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/itsyebekhe/PSG/lite/subscriptions/clash/vmess_domain.yaml # tags=auto status=candidate fails=1 last_count=0
+https://raw.githack.com/aviamastersgh/vpn-free-russia/main/ru_configs.txt # tags=auto status=candidate fails=0 last_count=1
