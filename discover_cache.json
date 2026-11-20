@@ -1,324 +1,4 @@
 {
- "https://www.python.org/": {
-  "ts": 1794884146.429796,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/rb360full_Reza-2.yaml": {
-  "ts": 1794884146.4752488,
-  "count": 121
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/lagzian_vmess_tvc.yaml": {
-  "ts": 1794884146.4752557,
-  "count": 34
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/maimengmeng.yaml": {
-  "ts": 1794884146.4752605,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/maimengmeng_custom.yaml": {
-  "ts": 1794884146.4752638,
-  "count": 90
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium/HiN-VPN/subscription/hiddify/vmess.yaml": {
-  "ts": 1794884146.475267,
-  "count": 29
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/vpnclashfa-backup/SubConfigShuffler/10ium_Collector_mixed_cloudflare.txt.yaml": {
-  "ts": 1794884146.511699,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/V2Hub3/merged_base64.yaml": {
-  "ts": 1794884146.5117075,
-  "count": 243
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/V2RayAggregator/Eternity.yml.yaml": {
-  "ts": 1794884146.5117137,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/vpnclashfa-backup/MirrorMan/hamedp-71_Trojan_hp.b64.yaml": {
-  "ts": 1794884146.5117197,
-  "count": 52
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/vpnclashfa-backup/SubConfigShuffler/10ium_CollectorLite_Config_mixed_cloudflare.txt.yaml": {
-  "ts": 1794884146.5117247,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/_hin-vpn-mix.yaml": {
-  "ts": 1794884146.5759664,
-  "count": 80
- },
- "https://apps.apple.com/us/app/streisand/id6450534064": {
-  "ts": 1794884146.9279697,
-  "count": 0
- },
- "https://karing.app/en/download": {
-  "ts": 1794884146.92798,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/ermaozi.yaml": {
-  "ts": 1794884146.927986,
-  "count": 83
- },
- "https://apps.apple.com/us/app/v2box-v2ray-client/id6446814690": {
-  "ts": 1794884146.9279914,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/vpnclashfa-backup/MirrorMan/Danialsamadi_v2go_custom.b64.yaml": {
-  "ts": 1794884146.9279966,
-  "count": 4
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/HiN-VPN/subscription/source/base64/surfboardv2ray.yaml": {
-  "ts": 1794884146.9280026,
-  "count": 0
- },
- "https://proxysvpn.com": {
-  "ts": 1794884146.9280074,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/anaer.yaml": {
-  "ts": 1794884146.9280148,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/NiREvil_SSTime.yaml": {
-  "ts": 1794884146.9280224,
-  "count": 88
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/ebrasha_lite.yaml": {
-  "ts": 1794884146.9280279,
-  "count": 23
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/proxy_kafee.yaml": {
-  "ts": 1794884146.9280324,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/10ium_vmess_iran.yaml": {
-  "ts": 1794884146.9280384,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/66_42_50_118.yaml": {
-  "ts": 1794884146.9280434,
-  "count": 0
- },
- "https://raw.githubusercontent.com/Ashollii/SubHarvest/main/output/stats.json": {
-  "ts": 1794884146.9280462,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/MatinGhanbari/v2ray-configs/ss.txt.yaml": {
-  "ts": 1794884146.9280493,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/hamedp-71_openproxylist.yaml": {
-  "ts": 1794884146.928052,
-  "count": 20
- },
- "https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/7.txt": {
-  "ts": 1794884146.9280548,
-  "count": 434
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/HiN-VPN/subscription/base64/ss.yaml": {
-  "ts": 1794884146.9280584,
-  "count": 70
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/HiN-VPN/subscription/hiddify/mix.yaml": {
-  "ts": 1794884146.9280615,
-  "count": 70
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/base64-encoder/MahsaNetConfigTopic.yaml": {
-  "ts": 1794884146.9280648,
-  "count": 21
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/10ium/HiN-VPN/subscription/base64/vmess.yaml": {
-  "ts": 1794884146.928068,
-  "count": 29
- },
- "https://about.signpath.io": {
-  "ts": 1794884147.6154964,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/Barabama_clashmeta.yaml": {
-  "ts": 1794884147.615505,
-  "count": 1
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/Ruk1ng001.yaml": {
-  "ts": 1794884147.6155105,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/itsyebekhe/_mix.yaml": {
-  "ts": 1794884147.6155152,
-  "count": 486
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/base64-encoder/FreedomGuard/_Finder_configs.yaml": {
-  "ts": 1794884147.6155195,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/FreedomGuard/_Finder_configs.yaml": {
-  "ts": 1794884147.6155229,
-  "count": 146
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/Barabama_clashmeta.yaml": {
-  "ts": 1794884147.6155267,
-  "count": 333
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/base64-encoder/ebrasha/_lite.yaml": {
-  "ts": 1794884147.6155295,
-  "count": 137
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/AzadNetCH/Clash/AzadNet.txt.yaml": {
-  "ts": 1794884147.6155334,
-  "count": 347
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/rasool083-sub.yaml": {
-  "ts": 1794884147.6155367,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/10ium_ss_iran.yaml": {
-  "ts": 1794884147.6155403,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/HiN-VPN/subscription/source/base64/vpnbaz.yaml": {
-  "ts": 1794884147.6155434,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/lagzian_meta.yaml": {
-  "ts": 1794884147.6155462,
-  "count": 34
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/mahdibland/SSAggregator/sub/sub_merge_yaml.yml.yaml": {
-  "ts": 1794884147.6155488,
-  "count": 1794
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/AzadNet/-hysteria.yaml": {
-  "ts": 1794884147.615552,
-  "count": 0
- },
- "https://img.shields.io/badge/PR-welcome-0ea5e9": {
-  "ts": 1794884147.615555,
-  "count": 0
- },
- "https://raw.githubusercontent.com/cyrusalbert/ArashOnline/refs/heads/main/lowest.txt#ArashOnline-Lowest": {
-  "ts": 1794884147.6155577,
-  "count": 20
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/moeinkey_ssh.yaml": {
-  "ts": 1794884147.61556,
-  "count": 16
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/HiN-VPN/subscription/source/base64/ar14n24b.yaml": {
-  "ts": 1794884147.6155627,
-  "count": 77
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/itsyebekhe_mix.yaml": {
-  "ts": 1794884147.6155653,
-  "count": 281
- },
- "https://raw.githubusercontent.com/V2HUBIR/V2HUBIR-Free-V2Ray-Configs-free-Sub/main/sub_base64.txt": {
-  "ts": 1794884147.6155684,
-  "count": 200
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/vpnclashfa-backup/SubConfigShuffler/10ium_V2ray_Config_vmess_cloudflare.txt.yaml": {
-  "ts": 1794884147.6155708,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/MatinGhanbari/v2ray-configs/subscriptions/v2ray/super-sub.txt.yaml": {
-  "ts": 1794884147.6155732,
-  "count": 132
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/base64-encoder/wudongdefeng_list_raw.yaml": {
-  "ts": 1794884147.615576,
-  "count": 29
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/Surfboardv2ray/_ipv6.yaml": {
-  "ts": 1794884147.615579,
-  "count": 26
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/vpnclashfa-backup/SubConfigShuffler/10ium_Collector_mixed_cloudflare.txt.yaml": {
-  "ts": 1794884147.6155815,
-  "count": 23
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/base64-encoder/ResistalProxy_server.yaml": {
-  "ts": 1794884147.615585,
-  "count": 119
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/V2ray-Config/Splitted-By-Protocol/hysteria2.txt.yaml": {
-  "ts": 1794884147.6155884,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/AzadNet/-t.me.yaml": {
-  "ts": 1794884147.615591,
-  "count": 347
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/HiN-VPN/subscription/source/base64/configx2ray.yaml": {
-  "ts": 1794884147.6155932,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/roosterkid_V2RAY_RAW.yaml": {
-  "ts": 1794884147.6155956,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/MatinGhanbari/v2ray-configs/super-sub.txt.yaml": {
-  "ts": 1794884147.615598,
-  "count": 41
- },
- "https://raw.githubusercontent.com/pog7x/vpn-configs/refs/heads/master/githubmirror/8.txt": {
-  "ts": 1794884147.6156006,
-  "count": 357
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/freedomnet25500_free.yaml": {
-  "ts": 1794884147.6156037,
-  "count": 0
- },
- "https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/all_configs.txt": {
-  "ts": 1794884147.6156075,
-  "count": 10223
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/Surfboardv2ray/TGParse/splitted/trojan.yaml": {
-  "ts": 1794884147.6156113,
-  "count": 749
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/vpnclashfa-backup/MirrorMan/hamedp-71_Trojan_hp.b64.yaml": {
-  "ts": 1794884147.6156137,
-  "count": 147
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/10ium_V2RayAggregator-Eternity.yaml": {
-  "ts": 1794884147.6156163,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/base64-encoder/miladtahanian_config.yaml": {
-  "ts": 1794884147.6156194,
-  "count": 113
- },
- "https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fwwewtech%2Fvpn_telegram_2026%2Fcoverage%2Fcoverage.json": {
-  "ts": 1794884147.6156223,
-  "count": 0
- },
- "https://img.shields.io/badge/Update-Hourly-success?style=for-the-badge": {
-  "ts": 1794884147.615625,
-  "count": 0
- },
- "https://raw.githubusercontent.com/Ashollii/SubHarvest/main/output/proxies.txt": {
-  "ts": 1794884147.6156306,
-  "count": 0
- },
- "https://Nexuspt753.github.io/": {
-  "ts": 1794884147.6156335,
-  "count": 0
- },
- "https://cdn.jsdelivr.net/gh/pashadolf/Eternal-Sub@main/Github-Gemini.txt": {
-  "ts": 1794884147.615636,
-  "count": 93
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/surfboard/Surfboardv2ray_ipv6.yaml": {
-  "ts": 1794884147.615639,
-  "count": 0
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/Danialsamadi_v2go_custom.yaml": {
-  "ts": 1794884147.6156425,
-  "count": 109
- },
- "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/hamedp-71/_Trojan_hp.yaml": {
-  "ts": 1794884147.6156454,
-  "count": 0
- },
  "https://komarev.com/ghpvc/?username=nikita29a&label=Visitors&color=0e75b6&style=flat": {
   "ts": 1794986953.467797,
   "count": 0
@@ -958,5 +638,325 @@
  "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/HiN-VPN/subscription/base64/ss.yaml": {
   "ts": 1795083629.9249878,
   "count": 74
+ },
+ "https://raw.githubusercontent.com/AmirrezaFarnamTaheri/HUNTX/main/outputs/all_sources_nekobox.json": {
+  "ts": 1795179255.3402307,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/HosseinKoofi/GO_V2rayCollector/main/vless_iran.txt": {
+  "ts": 1795179255.3402462,
+  "count": 78
+ },
+ "https://raw.githubusercontent.com/FLAT447/v2ray-lists/main/CLASH/BLACK_FULL.yaml": {
+  "ts": 1795179255.3402555,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/batches/clash/batch_002.yaml": {
+  "ts": 1795179255.340264,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/verified/configs.txt": {
+  "ts": 1795179255.3402708,
+  "count": 1104
+ },
+ "https://raw.githubusercontent.com/R3ZARAHIMI/tg-v2ray-configs-every2h/main/Config_jo.txt": {
+  "ts": 1795179255.3402789,
+  "count": 163
+ },
+ "https://raw.githubusercontent.com/Diversan313/apex-parser/main/subs/other/countries/NL/alive_NL.txt": {
+  "ts": 1795179255.340286,
+  "count": 61
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/al.txt": {
+  "ts": 1795179255.3402917,
+  "count": 13
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/gr_clash.yaml": {
+  "ts": 1795179255.3402982,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/kasesm/Free-Config/main/trojan_sub.txt": {
+  "ts": 1795179255.3403046,
+  "count": 60
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/ermaozi.yaml": {
+  "ts": 1795179255.3403106,
+  "count": 142
+ },
+ "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/refs/heads/main/subscriptions/v2ray/super-sub.txt": {
+  "ts": 1795179255.3403215,
+  "count": 200
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/hk.txt": {
+  "ts": 1795179255.353093,
+  "count": 373
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/fi_clash.yaml": {
+  "ts": 1795179255.3531008,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/SoliSpirit/SolVPN/main/Protocols/trojan.txt": {
+  "ts": 1795179255.3531072,
+  "count": 9
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/tcp-pass-sni/batch_015.txt": {
+  "ts": 1795179255.3894765,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/pie-with-jam/PulseProxy/main/githubmirror/9.txt": {
+  "ts": 1795179255.4050112,
+  "count": 216
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/shabane_ss.yaml": {
+  "ts": 1795179255.4173493,
+  "count": 26
+ },
+ "https://raw.githubusercontent.com/ShatakVPN/ConfigForge-V2Ray/main/configs/pl/all.txt": {
+  "ts": 1795179255.4173596,
+  "count": 219
+ },
+ "http://127.0.0.1:3128": {
+  "ts": 1795179255.417367,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/ndsphonemy_default.yaml": {
+  "ts": 1795179255.4256446,
+  "count": 222
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/mn.txt": {
+  "ts": 1795179255.4256501,
+  "count": 1
+ },
+ "https://raw.githubusercontent.com/R3ZARAHIMI/tg-v2ray-configs-every2h/main/regions/country_history.json": {
+  "ts": 1795179255.4822335,
+  "count": 404
+ },
+ "https://raw.githubusercontent.com/10Dream/sub-mod/main/sub/base64/Delta-Kronecker_ss": {
+  "ts": 1795179255.48224,
+  "count": 748
+ },
+ "https://example.com/subscription.txt": {
+  "ts": 1795179255.4822483,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/ca.txt": {
+  "ts": 1795179255.4822557,
+  "count": 334
+ },
+ "https://raw.githubusercontent.com/rtwo2/FastNodes/main/sub/curated.txt": {
+  "ts": 1795179255.7566946,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/V2HUBIR/V2HUBIR-Free-V2Ray-Configs-free-Sub/main/sub_base64.txt": {
+  "ts": 1795179255.756701,
+  "count": 200
+ },
+ "https://raw.githubusercontent.com/R3ZARAHIMI/tg-v2ray-configs-every2h/main/conf-week.txt": {
+  "ts": 1795179255.7567055,
+  "count": 1328
+ },
+ "https://raw.githubusercontent.com/rtwo2/FastNodes/main/sub/countries/IS.txt": {
+  "ts": 1795179255.7567093,
+  "count": 46
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/Mosifree_Vmess.yaml": {
+  "ts": 1795179255.756713,
+  "count": 44
+ },
+ "https://raw.githubusercontent.com/Surfboardv2ray/TGParse/main/splitted/trojan": {
+  "ts": 1795179255.7567163,
+  "count": 801
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/AzadNetCH/Clash/AzadNet.txt.yaml": {
+  "ts": 1795179255.7567194,
+  "count": 180
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/eg.txt": {
+  "ts": 1795179255.756723,
+  "count": 1
+ },
+ "https://raw.githubusercontent.com/hamedcode/port-based-v2ray-configs/main/sub/vless.txt": {
+  "ts": 1795179255.7567267,
+  "count": 5390
+ },
+ "https://raw.githubusercontent.com/10Dream/sub-mod/main/sub/base64/10ium-HiN-VPN-mix": {
+  "ts": 1795179255.75673,
+  "count": 703
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/in_clash.yaml": {
+  "ts": 1795179255.7567337,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/roosterkid/openproxylist/main/V2RAY_RAW.txt": {
+  "ts": 1795179255.7567391,
+  "count": 129
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/MatinGhanbari/v2ray-configs/subscriptions/filtered/subs/vmess.txt.yaml": {
+  "ts": 1795179255.7567427,
+  "count": 2663
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/vpnclashfa-backup/SubConfigShuffler/10ium_V2ray_Config_vmess_cloudflare.txt.yaml": {
+  "ts": 1795179255.7567458,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/lanzm/MetaFetch/master/list.b64": {
+  "ts": 1795179255.7567496,
+  "count": 249
+ },
+ "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/verified/configs_base64.txt": {
+  "ts": 1795179255.7567527,
+  "count": 1104
+ },
+ "https://raw.githubusercontent.com/rtwo2/FastNodes/main/sub/countries/AL.txt": {
+  "ts": 1795179255.7567563,
+  "count": 172
+ },
+ "https://raw.githubusercontent.com/YawStar/Proxy-Hunter/refs/heads/main/configs/proxy_configs_tested.txt": {
+  "ts": 1795179255.7567587,
+  "count": 334
+ },
+ "https://raw.githubusercontent.com/Andrejewild/happ-v2rayng-configs/main/sub.txt": {
+  "ts": 1795179255.756762,
+  "count": 20
+ },
+ "https://raw.githubusercontent.com/youfoundamin/V2rayCollector/main/mixed_iran.txt": {
+  "ts": 1795179255.7567656,
+  "count": 591
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/FreedomGuard_Finder_configs.yaml": {
+  "ts": 1795179255.7567685,
+  "count": 77
+ },
+ "https://raw.githubusercontent.com/rtwo2/FastNodes/main/sub/countries/CY.txt": {
+  "ts": 1795179255.7567716,
+  "count": 1000
+ },
+ "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/main/Z.txt": {
+  "ts": 1795179255.7887576,
+  "count": 1245
+ },
+ "https://raw.githubusercontent.com/Au1rxx/free-vpn-subscriptions/main/output/all-verified/singbox-0006.json": {
+  "ts": 1795179255.788765,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/Freedom-Guard-Builder/Freedom-Finder/main/out/configs/mixed.txt": {
+  "ts": 1795179255.7887716,
+  "count": 99
+ },
+ "https://raw.githubusercontent.com/MahanKenway/Freedom-V2Ray/main/configs/vmess.txt": {
+  "ts": 1795179255.788775,
+  "count": 1059
+ },
+ "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Export/Clash/PROXIES_ONLY/BLACK_VLESS_RUS_mobile_clash_proxies.yaml": {
+  "ts": 1795179255.7887797,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/MahanKenway/Freedom-V2Ray/main/configs/trojan_sub.txt": {
+  "ts": 1795179255.7887833,
+  "count": 298
+ },
+ "https://raw.githubusercontent.com/MahanKenway/Freedom-V2Ray/main/configs/vless_sub.txt": {
+  "ts": 1795179255.7887864,
+  "count": 115
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/ss/10ium/V2Hub3/merged_base64.yaml": {
+  "ts": 1795179255.7899806,
+  "count": 293
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/v2ray/vpnclashfa-backup/MirrorMan/hamedp-71_Trojan_hp.b64.yaml": {
+  "ts": 1795179255.7899897,
+  "count": 79
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/10ium/HiN-VPN/subscription/hiddify/ss.yaml": {
+  "ts": 1795179255.7899966,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/es_clash.yaml": {
+  "ts": 1795179255.790003,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/base64/subs/sub6.txt": {
+  "ts": 1795179255.790011,
+  "count": 200
+ },
+ "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/subs/sub23.txt": {
+  "ts": 1795179255.8230805,
+  "count": 200
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/Leon406/SubCrawler/sub/share/a11.yaml": {
+  "ts": 1795179255.856729,
+  "count": 212
+ },
+ "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Base64/Sub26_base64.txt": {
+  "ts": 1795179255.8567383,
+  "count": 80
+ },
+ "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/base64/subs/sub28.txt": {
+  "ts": 1795179255.875123,
+  "count": 200
+ },
+ "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/subs/sub11.txt": {
+  "ts": 1795179255.8751323,
+  "count": 200
+ },
+ "https://raw.githubusercontent.com/sakha1370/OpenRay/main/output/check_counts.json": {
+  "ts": 1795179256.3456292,
+  "count": 5848
+ },
+ "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Sub9.txt": {
+  "ts": 1795179256.3457527,
+  "count": 500
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/pl.txt": {
+  "ts": 1795179256.3457584,
+  "count": 50
+ },
+ "https://raw.githubusercontent.com/kasesm/Free-Config/main/all_raw.txt": {
+  "ts": 1795179256.3457627,
+  "count": 3038
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/ru.txt": {
+  "ts": 1795179256.3457673,
+  "count": 41
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/tcp-pass/batch_020.txt": {
+  "ts": 1795179256.7244785,
+  "count": 9967
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/au.txt": {
+  "ts": 1795179256.7244878,
+  "count": 18
+ },
+ "https://raw.githubusercontent.com/Au1rxx/free-vpn-subscriptions/main/output/all-verified/singbox-0005.json": {
+  "ts": 1795179256.7244937,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/ua_clash.yaml": {
+  "ts": 1795179256.7245002,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/Andrejewild/hiddify-singbox-configs-ru/main/sub.txt": {
+  "ts": 1795179256.7245052,
+  "count": 20
+ },
+ "https://raw.githubusercontent.com/whoahaow/rjsxrd/main/githubmirror/bypass/bypass-5.txt": {
+  "ts": 1795179256.7245095,
+  "count": 300
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/mixed/10ium/HiN-VPN/subscription/base64/mix.yaml": {
+  "ts": 1795179256.724514,
+  "count": 193
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/countries/gr.txt": {
+  "ts": 1795179256.7245183,
+  "count": 1
+ },
+ "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/farg/protocols/trojan.json": {
+  "ts": 1795179256.7245219,
+  "count": 0
+ },
+ "https://raw.githubusercontent.com/asgharkapk/Sub-Config-Extractor/refs/heads/main/output_configs/clash/vpnclashfa-backup/SubConfigShuffler/MahsaNetConfigTopic.txt.yaml": {
+  "ts": 1795179256.7245274,
+  "count": 0
  }
 }
